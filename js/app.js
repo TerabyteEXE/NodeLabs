@@ -604,12 +604,17 @@ function updateBackdropProp(id, prop, val) {
 // --- Layer Operations ---
 function renderLayers() {
   layersListEl.innerHTML = '';
-  layers.forEach(layer => {
+  layers.forEach((layer) => {
     const div = document.createElement('div');
     div.className = 'layer-item';
     div.innerHTML = `
-      <button style="padding:2px 4px; border:none; background:transparent;" onclick="toggleLayer('${layer.id}')">${layer.visible ? '👁' : '🕶'}</button>
+      <button style="padding:2px 4px; border:none; background:transparent; cursor:pointer;" onclick="toggleLayer('${layer.id}')" title="Toggle Visibility">
+        ${layer.visible ? '👁' : '🕶'}
+      </button>
       <input type="text" value="${layer.name}" onchange="updateLayerName('${layer.id}', this.value)">
+      <button style="padding:2px 6px; border:none; background:transparent; color:var(--accent-pink); cursor:pointer; font-weight:bold;" onclick="deleteLayer('${layer.id}')" title="Delete Layer">
+        ✕
+      </button>
     `;
     layersListEl.appendChild(div);
   });
@@ -617,7 +622,8 @@ function renderLayers() {
 }
 
 function addLayer() {
-  layers.push({ id: 'layer_' + Date.now(), name: 'New Layer', visible: true });
+  const newLayerId = 'layer_' + Date.now();
+  layers.push({ id: newLayerId, name: 'New Layer', visible: true });
   renderLayers();
 }
 
@@ -632,13 +638,33 @@ function updateLayerName(id, name) {
   if (layer) layer.name = name;
 }
 
-function refreshVisibility() {
+function deleteLayer(idToPort) {
+  if (layers.length <= 1) {
+    if (!confirm("This is the last layer. Deleting it will create a default 'Main Layer' to keep your nodes active. Proceed?")) {
+      return;
+    }
+  }
+
+  // Remove the deleted layer from array
+  layers = layers.filter(l => l.id !== idToPort);
+
+  // If no layers left, create a default fallback layer
+  if (layers.length === 0) {
+    layers.push({ id: 'layer_default', name: 'Main Layer', visible: true });
+  }
+
+  const targetLayerId = layers[0].id;
+
+  // Move all nodes from deleted layer to remaining default layer
   nodes.forEach(node => {
-    const layer = layers.find(l => l.id === node.layerId);
-    const el = document.getElementById(node.id);
-    if (el) el.classList.toggle('hidden', layer && !layer.visible);
+    if (node.layerId === idToPort) {
+      node.layerId = targetLayerId;
+    }
   });
-  updateConnections();
+
+  renderLayers();
+  refreshVisibility();
+  if (selectedNodeId) renderInspector();
 }
 
 // --- Deletions & Canvas Utilities ---
