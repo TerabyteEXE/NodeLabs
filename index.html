@@ -1,1 +1,67 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Node Labs</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
 
+  <header>
+    <div class="brand">Node Labs <span>PRO</span></div>
+    
+    <div class="toolbar-section">
+      <div class="search-wrapper">
+        <input type="text" id="node-search" placeholder="🔍 Add device (Switch, Mixer...)" autocomplete="off">
+        <div id="search-dropdown" class="search-dropdown"></div>
+      </div>
+      
+      <div class="btn-group">
+        <button onclick="addBackdrop()">+ Backdrop</button>
+        <button id="btn-grid" class="active" onclick="toggleGrid()">Grid Snap</button>
+        <button onclick="snapAllNodes()">Align All</button>
+      </div>
+    </div>
+
+    <div class="toolbar-section">
+      <div class="btn-group">
+        <button onclick="exportJSON()">💾 Save</button>
+        <button onclick="importJSON()">📂 Open</button>
+        <button id="btn-theme" onclick="toggleTheme()">☀️ Light</button>
+        <button onclick="resetView()">🎯 Center</button>
+        <button onclick="clearCanvas()" style="color: var(--accent-pink);">Clear</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <div id="viewport">
+      <div id="canvas">
+        <svg id="svg-layer">
+          <path id="drag-line" class="drag-line" d="" style="display:none;"></path>
+        </svg>
+      </div>
+    </div>
+
+    <aside>
+      <div class="panel-section" style="flex: 0.4;">
+        <h3>Layers <button onclick="addLayer()">+ Add</button></h3>
+        <div id="layers-list"></div>
+      </div>
+      
+      <div class="panel-section" style="flex: 1;">
+        <h3>Inspector</h3>
+        <div id="inspector-content">
+          <div style="font-size: 0.78rem; color: var(--text-muted); text-align: center; margin-top: 2rem;">Select a node, backdrop, or cable to inspect.</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <input type="file" id="file-input" accept=".json" onchange="handleFileSelect(event)">
+
+  <script src="js/componentLibrary.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
