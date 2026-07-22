@@ -35,6 +35,9 @@ function init() {
   layersListEl = document.getElementById('layers-list');
   projectNameInput = document.getElementById('project-name');
 
+  // Immediately render background dots and scale positioning on startup
+  applyTransform();
+
   renderLayers();
   setupSearch();
   setupViewportControls();
@@ -751,6 +754,9 @@ function clearCanvas() {
     document.querySelectorAll('.node, .backdrop').forEach(el => el.remove());
     deselectAll();
     updateConnections();
+    
+    // Maintain grid dot rendering on clean canvas
+    applyTransform();
   }
 }
 
