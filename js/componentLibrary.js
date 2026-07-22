@@ -1,4 +1,3 @@
-// Attach directly to window to guarantee app.js access
 window.componentLibrary = [
   { type: 'Network Switch', color: '#00e5ff', inPorts: 4, outPorts: 4 },
   { type: 'Audio Mixer', color: '#9d4edd', inPorts: 8, outPorts: 8 },
