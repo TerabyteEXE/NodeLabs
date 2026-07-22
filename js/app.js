@@ -15,6 +15,7 @@ let connectingPort = null;
 let dragNodeId = null;
 let dragBackdrop = null;
 let resizingBackdrop = null;
+let resizingNode = null;
 
 let currentTheme = 'dark';
 let scale = 1, panX = 0, panY = 0;
@@ -29,6 +30,7 @@ const dragLine = document.getElementById('drag-line');
 const searchInput = document.getElementById('node-search');
 const searchDropdown = document.getElementById('search-dropdown');
 const layersListEl = document.getElementById('layers-list');
+const projectNameInput = document.getElementById('project-name');
 
 function init() {
   renderLayers();
@@ -40,8 +42,8 @@ function init() {
   const node1Id = 'node_init_1';
   const node2Id = 'node_init_2';
 
-  createNodeWithId(node1Id, 'Network Switch', layers[0].id, 140, 150, '#00e5ff', 1, 1);
-  createNodeWithId(node2Id, 'Audio Mixer', layers[1].id, 460, 150, '#9d4edd', 1, 1);
+  createNodeWithId(node1Id, 'Network Switch', layers[0].id, 140, 150, '#00e5ff', 2, 2, 220, 120);
+  createNodeWithId(node2Id, 'Audio Mixer', layers[1].id, 460, 150, '#9d4edd', 4, 4, 240, 180);
   
   createConnection(node1Id, 0, node2Id, 0);
 
@@ -95,6 +97,14 @@ function setupViewportControls() {
       updateConnections();
     }
 
+    if (resizingNode) {
+      const node = nodes.find(n => n.id === resizingNode);
+      node.w = Math.max(160, node.w + e.movementX / scale);
+      node.h = Math.max(100, node.h + e.movementY / scale);
+      updateNodeSizeDOM(node);
+      updateConnections();
+    }
+
     if (dragBackdrop) {
       const bd = backdrops.find(b => b.id === dragBackdrop.id);
       bd.x += e.movementX / scale;
@@ -137,6 +147,7 @@ function setupViewportControls() {
     dragNodeId = null;
     dragBackdrop = null;
     resizingBackdrop = null;
+    resizingNode = null;
 
     if (connectingPort) {
       const targetPort = e.target.closest('.port');
@@ -169,7 +180,7 @@ function deselectAll() {
   selectedNodeId = null;
   selectedBackdropId = null;
   selectedConnId = null;
-  document.querySelectorAll('.node, .connector').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll('.node, .connector-group').forEach(el => el.classList.remove('selected'));
   renderInspector();
 }
 
@@ -187,7 +198,7 @@ function setupSearch() {
       div.onmousedown = () => {
         const viewCenterX = (-panX + viewport.clientWidth / 2) / scale;
         const viewCenterY = (-panY + viewport.clientHeight / 2) / scale;
-        createNode(comp.type, layers[0].id, viewCenterX - 100, viewCenterY - 40, comp.color, 1, 1);
+        createNode(comp.type, layers[0].id, viewCenterX - 100, viewCenterY - 40, comp.color, comp.inPorts || 1, comp.outPorts || 1);
         searchInput.value = '';
         searchDropdown.classList.remove('active');
       };
@@ -251,17 +262,18 @@ function updateBackdropDOM(bd) {
 
 // --- Nodes Management ---
 function createNode(type, layerId, x, y, color, inPorts = 1, outPorts = 1) {
-  createNodeWithId('node_' + Date.now(), type, layerId, x, y, color, inPorts, outPorts);
+  const autoH = Math.max(110, Math.max(inPorts, outPorts) * 28 + 50);
+  createNodeWithId('node_' + Date.now(), type, layerId, x, y, color, inPorts, outPorts, 220, autoH);
 }
 
-function createNodeWithId(id, type, layerId, x, y, color, inPorts = 1, outPorts = 1) {
+function createNodeWithId(id, type, layerId, x, y, color, inPorts = 1, outPorts = 1, w = 220, h = 110) {
   if (snapToGrid) {
     x = Math.round(x / GRID_SIZE) * GRID_SIZE;
     y = Math.round(y / GRID_SIZE) * GRID_SIZE;
   }
 
   const node = { 
-    id, type, layerId, label: type, color, x, y, 
+    id, type, layerId, label: type, color, x, y, w, h,
     inPorts: inPorts !== undefined ? parseInt(inPorts) : 1, 
     outPorts: outPorts !== undefined ? parseInt(outPorts) : 1,
     starred: false, highlighted: false,
@@ -301,10 +313,17 @@ function renderNodeToDOM(node) {
     </div>
     <div class="port-column left">${inPortsHTML}</div>
     <div class="port-column right">${outPortsHTML}</div>
+    <div class="node-resize"></div>
   `;
 
   el.querySelector('.node-header').addEventListener('mousedown', (e) => {
     dragNodeId = node.id;
+    selectNode(node.id);
+    e.stopPropagation();
+  });
+
+  el.querySelector('.node-resize').addEventListener('mousedown', (e) => {
+    resizingNode = node.id;
     selectNode(node.id);
     e.stopPropagation();
   });
@@ -330,6 +349,7 @@ function renderNodeToDOM(node) {
 
   canvas.appendChild(el);
   updateNodePositionDOM(node);
+  updateNodeSizeDOM(node);
   refreshVisibility();
 }
 
@@ -341,7 +361,15 @@ function updateNodePositionDOM(node) {
   }
 }
 
-// --- Dynamic Connections & Gradient Pathing ---
+function updateNodeSizeDOM(node) {
+  const el = document.getElementById(node.id);
+  if (el) {
+    el.style.width = node.w + 'px';
+    el.style.height = node.h + 'px';
+  }
+}
+
+// --- Connections with Hitboxes ---
 function createConnection(fromId, fromIdx, toId, toIdx) {
   if (connections.some(c => c.from === fromId && c.fromIdx === fromIdx && c.to === toId && c.toIdx === toIdx)) return;
   connections.push({ id: 'conn_' + Date.now(), from: fromId, fromIdx, to: toId, toIdx });
@@ -349,7 +377,7 @@ function createConnection(fromId, fromIdx, toId, toIdx) {
 }
 
 function updateConnections() {
-  svgLayer.querySelectorAll('.connector').forEach(el => el.remove());
+  svgLayer.querySelectorAll('g.connector-group').forEach(el => el.remove());
 
   let defs = svgLayer.querySelector('defs');
   if (!defs) {
@@ -402,16 +430,28 @@ function updateConnections() {
       defs.appendChild(grad);
 
       const dx = Math.abs(x2 - x1) * 0.5;
+      const pathD = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+
+      const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      group.setAttribute('class', `connector-group ${selectedConnId === conn.id ? 'selected' : ''}`);
+
+      const hitbox = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      hitbox.setAttribute('d', pathD);
+      hitbox.setAttribute('class', 'connector-hitbox');
+
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`);
-      path.setAttribute('class', `connector ${selectedConnId === conn.id ? 'selected' : ''}`);
+      path.setAttribute('d', pathD);
+      path.setAttribute('class', 'connector');
       
       if (selectedConnId !== conn.id) {
         path.setAttribute('stroke', `url(#${gradId})`);
       }
+
+      group.appendChild(hitbox);
+      group.appendChild(path);
       
-      path.onmousedown = (e) => { e.stopPropagation(); selectConnection(conn.id); };
-      svgLayer.appendChild(path);
+      group.onmousedown = (e) => { e.stopPropagation(); selectConnection(conn.id); };
+      svgLayer.appendChild(group);
     }
   });
 }
@@ -460,11 +500,21 @@ function renderInspector() {
       <div class="field-row">
         <div class="field" style="flex:1;">
           <label>IN Ports</label>
-          <input type="number" min="0" max="16" value="${node.inPorts}" onchange="updateNodeProp('${node.id}', 'inPorts', this.value)">
+          <input type="number" min="0" max="32" value="${node.inPorts}" onchange="updateNodeProp('${node.id}', 'inPorts', this.value)">
         </div>
         <div class="field" style="flex:1;">
           <label>OUT Ports</label>
-          <input type="number" min="0" max="16" value="${node.outPorts}" onchange="updateNodeProp('${node.id}', 'outPorts', this.value)">
+          <input type="number" min="0" max="32" value="${node.outPorts}" onchange="updateNodeProp('${node.id}', 'outPorts', this.value)">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field" style="flex:1;">
+          <label>Width (px)</label>
+          <input type="number" min="160" max="600" value="${Math.round(node.w)}" onchange="updateNodeProp('${node.id}', 'w', this.value)">
+        </div>
+        <div class="field" style="flex:1;">
+          <label>Height (px)</label>
+          <input type="number" min="100" max="800" value="${Math.round(node.h)}" onchange="updateNodeProp('${node.id}', 'h', this.value)">
         </div>
       </div>
       <div class="field">
@@ -504,10 +554,15 @@ function updateNodeProp(id, prop, val) {
   const node = nodes.find(n => n.id === id);
   if (!node) return;
   
-  if (prop === 'inPorts' || prop === 'outPorts') val = parseInt(val) || 0;
+  if (['inPorts', 'outPorts', 'w', 'h'].includes(prop)) val = parseInt(val) || 0;
   node[prop] = val;
-  
-  if (prop === 'inPorts' || prop === 'outPorts' || prop === 'color') {
+
+  if (prop === 'inPorts' || prop === 'outPorts') {
+    const requiredH = Math.max(node.h, Math.max(node.inPorts, node.outPorts) * 28 + 50);
+    node.h = requiredH;
+  }
+
+  if (['inPorts', 'outPorts', 'color', 'w', 'h'].includes(prop)) {
     const el = document.getElementById(id);
     el.remove();
     renderNodeToDOM(node);
@@ -632,11 +687,20 @@ function snapAllNodes() {
 
 // --- Import / Export System ---
 function exportJSON() {
-  const schematicData = { version: "2026.2", layers, backdrops, nodes, connections, viewport: { scale, panX, panY } };
+  const projectName = projectNameInput.value.trim() || "Untitled Project";
+  const schematicData = { 
+    version: "2026.2", 
+    projectName,
+    layers, 
+    backdrops, 
+    nodes, 
+    connections, 
+    viewport: { scale, panX, panY } 
+  };
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(schematicData, null, 2));
   const downloadAnchor = document.createElement('a');
   downloadAnchor.setAttribute("href", dataStr);
-  downloadAnchor.setAttribute("download", `node-labs-project-${Date.now()}.json`);
+  downloadAnchor.setAttribute("download", `${projectName.replace(/[^a-z0-9_-]/gi, '_')}.json`);
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();
@@ -655,6 +719,7 @@ function handleFileSelect(evt) {
       nodes = []; backdrops = []; connections = [];
       document.querySelectorAll('.node, .backdrop').forEach(el => el.remove());
 
+      if (data.projectName) projectNameInput.value = data.projectName;
       layers = data.layers || [];
       backdrops = data.backdrops || [];
       nodes = data.nodes || [];
