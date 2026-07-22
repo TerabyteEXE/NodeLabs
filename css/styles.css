@@ -7,7 +7,7 @@
   --text-muted: #a6adc8;
   --accent-pink: #f38ba8;
   --accent-blue: #89b4fa;
-  --grid-dot: #313244;
+  --grid-dot: #45475a;
 }
 
 [data-theme="light"] {
@@ -19,7 +19,7 @@
   --text-muted: #6c6f85;
   --accent-pink: #e64553;
   --accent-blue: #1e66f5;
-  --grid-dot: #dce0e8;
+  --grid-dot: #9ca0b0;
 }
 
 * {
@@ -38,7 +38,7 @@ body, html {
   color: var(--text-main);
 }
 
-/* Header & Toolbar */
+/* Header & Navigation Toolbar */
 header {
   height: 50px;
   background-color: var(--bg-panel);
@@ -104,7 +104,7 @@ button.active {
   color: var(--accent-blue);
 }
 
-/* Search Dropdown Fixes */
+/* Search Area & Floating Dropdown */
 .search-wrapper {
   position: relative;
 }
@@ -115,7 +115,7 @@ button.active {
   color: var(--text-main);
   padding: 6px 12px;
   border-radius: 4px;
-  width: 180px;
+  width: 190px;
   font-size: 0.82rem;
 }
 
@@ -136,7 +136,7 @@ button.active {
   max-height: 220px;
   overflow-y: auto;
   z-index: 99999;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.5);
   margin-top: 4px;
 }
 
@@ -151,6 +151,7 @@ button.active {
   gap: 8px;
   cursor: pointer;
   font-size: 0.82rem;
+  color: var(--text-main);
 }
 
 .search-item:hover {
@@ -161,9 +162,10 @@ button.active {
   width: 10px;
   height: 10px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
-/* App Container Layout */
+/* Main Canvas Layout & Dots Background */
 .app-container {
   display: flex;
   height: calc(100vh - 50px);
@@ -177,7 +179,10 @@ button.active {
   position: relative;
   overflow: hidden;
   cursor: grab;
-  background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+  background-color: var(--bg-main);
+  background-image: radial-gradient(circle, var(--grid-dot) 1.5px, transparent 1.5px);
+  background-size: 28px 28px;
+  background-position: 0px 0px;
 }
 
 #canvas {
@@ -199,10 +204,13 @@ svg#svg-layer {
   z-index: 2;
 }
 
+/* Animated Flowing Cable Connectors */
 svg path.connector {
   stroke-width: 3px;
   fill: none;
   pointer-events: none;
+  stroke-dasharray: 8, 6;
+  animation: flowSignal 0.8s linear infinite;
 }
 
 svg path.connector-hitbox {
@@ -216,6 +224,8 @@ svg path.connector-hitbox {
 svg g.connector-group.selected path.connector {
   stroke: var(--accent-pink) !important;
   stroke-width: 4px;
+  stroke-dasharray: 6, 4;
+  animation: flowSignal 0.4s linear infinite;
 }
 
 svg path.drag-line {
@@ -225,7 +235,16 @@ svg path.drag-line {
   fill: none;
 }
 
-/* Nodes & Backdrops */
+@keyframes flowSignal {
+  from {
+    stroke-dashoffset: 28;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Backdrops & Node Components */
 .backdrop {
   position: absolute;
   border: 2px dashed #3a86ff;
@@ -257,11 +276,17 @@ svg path.drag-line {
   border-radius: 6px;
   z-index: 10;
   box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .node.selected {
   border-color: var(--accent-blue);
   box-shadow: 0 0 0 2px var(--accent-blue);
+}
+
+.node.highlighted {
+  border-color: var(--accent-pink) !important;
+  box-shadow: 0 0 14px var(--accent-pink);
 }
 
 .node.starred .star-icon {
@@ -327,7 +352,7 @@ svg path.drag-line {
   background-color: var(--accent-blue);
 }
 
-/* Sidebar & Inspector */
+/* Right Sidebar & Inspector Panel */
 aside {
   width: 280px;
   background-color: var(--bg-panel);
