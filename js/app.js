@@ -196,7 +196,7 @@ function deselectAll() {
   renderInspector();
 }
 
-// --- Search ---
+// --- Search System ---
 function setupSearch() {
   const renderResults = (query) => {
     searchDropdown.innerHTML = '';
