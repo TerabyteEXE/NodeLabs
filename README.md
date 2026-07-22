@@ -2,7 +2,7 @@
 
 > **Modular, node-based diagramming and schematic visualizer for A/V systems and production setups.**
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/TerabyteEXE/NodeLabs/releases)
+[![Version](https://img.shields.io/badge/version-1.1.2-blue.svg)](https://github.com/TerabyteEXE/NodeLabs/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub Pages](https://img.shields.io/badge/Hosted%20on-GitHub%20Pages-blue)](https://pages.github.com/)
 
