@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Node Labs</title>
+  <title>Node Labs - Pro A/V Builder</title>
   <style>
-    :root {
-      /* Clean, professional dark palette */
+    /* --- CSS Variables for Light & Dark Modes --- */
+    :root[data-theme="dark"] {
       --bg-base: #0b0d14;
       --bg-panel: #141722;
       --bg-node: #1c2030;
@@ -17,15 +17,43 @@
       --accent-cyan: #00e5ff;
       --accent-purple: #9d4edd;
       --accent-blue: #3a86ff;
+      --accent-pink: #ff006e;
+      
       --text-main: #e2e8f0;
       --text-muted: #8b9bb4;
-      
-      --grid-size: 28px;
+      --grid-dot: #2a2f45;
+      --shadow: rgba(0, 0, 0, 0.4);
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    :root[data-theme="light"] {
+      --bg-base: #f4f6fb;
+      --bg-panel: #ffffff;
+      --bg-node: #ffffff;
+      --bg-node-header: #f1f5f9;
+      --border-subtle: #cbd5e1;
+      --border-active: #3a86ff;
+      
+      --accent-cyan: #0284c7;
+      --accent-purple: #7e22ce;
+      --accent-blue: #2563eb;
+      --accent-pink: #e11d48;
+      
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --grid-dot: #cbd5e1;
+      --shadow: rgba(0, 0, 0, 0.08);
+    }
+
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+      user-select: none; 
+      transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+    }
+
     body {
-      font-family: 'Inter', -apple-system, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background-color: var(--bg-base);
       color: var(--text-main);
       display: flex;
@@ -38,16 +66,31 @@
     header {
       background: var(--bg-panel);
       border-bottom: 1px solid var(--border-subtle);
-      padding: 0.5rem 1.5rem;
+      padding: 0.5rem 1.25rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
       z-index: 100;
       height: 56px;
+      box-shadow: 0 2px 8px var(--shadow);
     }
 
-    .brand { font-size: 1rem; font-weight: 600; display: flex; gap: 8px; align-items: center; }
-    .brand span { font-size: 0.7rem; color: var(--text-muted); background: var(--border-subtle); padding: 2px 6px; border-radius: 4px; }
+    .brand { 
+      font-size: 0.95rem; 
+      font-weight: 700; 
+      display: flex; 
+      gap: 8px; 
+      align-items: center; 
+      letter-spacing: -0.2px;
+    }
+    .brand span { 
+      font-size: 0.65rem; 
+      color: var(--text-muted); 
+      background: var(--bg-base); 
+      border: 1px solid var(--border-subtle);
+      padding: 2px 6px; 
+      border-radius: 4px; 
+    }
 
     .toolbar-center {
       position: relative;
@@ -61,52 +104,77 @@
       background: var(--bg-base);
       border: 1px solid var(--border-subtle);
       color: var(--text-main);
-      padding: 6px 12px;
-      border-radius: 4px;
-      width: 250px;
+      padding: 7px 14px;
+      border-radius: 6px;
+      width: 260px;
       outline: none;
       font-size: 0.85rem;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .search-wrapper input:focus { border-color: var(--accent-blue); }
+    .search-wrapper input:focus { 
+      border-color: var(--accent-blue); 
+      box-shadow: 0 0 0 3px rgba(58, 134, 255, 0.15);
+    }
 
     .search-dropdown {
       position: absolute;
-      top: 100%; left: 0; right: 0;
+      top: calc(100% + 4px); 
+      left: 0; right: 0;
       background: var(--bg-panel);
       border: 1px solid var(--border-subtle);
-      border-radius: 0 0 4px 4px;
-      max-height: 300px;
+      border-radius: 6px;
+      max-height: 280px;
       overflow-y: auto;
       display: none;
       z-index: 200;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      box-shadow: 0 8px 24px var(--shadow);
+      animation: dropDown 0.2s ease-out;
+    }
+    @keyframes dropDown {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .search-dropdown.active { display: block; }
     .search-item {
-      padding: 8px 12px;
-      font-size: 0.8rem;
+      padding: 9px 12px;
+      font-size: 0.82rem;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       border-bottom: 1px solid var(--bg-base);
+      transition: background-color 0.15s ease;
     }
     .search-item:hover { background: var(--bg-node-header); }
     .color-dot { width: 10px; height: 10px; border-radius: 50%; }
 
-    .controls { display: flex; gap: 8px; }
+    .btn-group { display: flex; gap: 6px; align-items: center; }
+    
     button {
       background: var(--bg-node);
       color: var(--text-main);
       border: 1px solid var(--border-subtle);
       padding: 6px 12px;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
       font-size: 0.8rem;
-      transition: background 0.1s;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s ease;
     }
-    button:hover { background: var(--border-active); }
-    button.active { background: var(--accent-blue); border-color: var(--accent-blue); color: white; }
+    button:hover { 
+      background: var(--bg-node-header); 
+      border-color: var(--border-active);
+      transform: translateY(-1px);
+    }
+    button:active { transform: translateY(0); }
+    button.active { 
+      background: var(--accent-blue); 
+      border-color: var(--accent-blue); 
+      color: #ffffff; 
+    }
 
     /* --- Main Layout --- */
     .app-container {
@@ -123,9 +191,8 @@
       overflow: hidden;
       cursor: grab;
       background-color: var(--bg-base);
-      background-image: radial-gradient(circle, var(--border-subtle) 1px, transparent 1px);
-      background-size: var(--grid-size) var(--grid-size);
-      background-position: 0 0;
+      background-image: radial-gradient(circle, var(--grid-dot) 1.2px, transparent 1.2px);
+      background-size: 28px 28px;
     }
     #viewport:active { cursor: grabbing; }
 
@@ -134,7 +201,7 @@
       top: 0; left: 0;
       transform-origin: 0 0;
       width: 100%; height: 100%;
-      pointer-events: none; /* Let viewport handle background drags */
+      pointer-events: none;
     }
 
     #svg-layer {
@@ -145,32 +212,43 @@
       overflow: visible;
     }
 
-    /* --- Nodes --- */
+    /* --- Animated Node Cards --- */
     .node {
       position: absolute;
-      width: 200px;
+      width: 210px;
       background: var(--bg-node);
       border: 1px solid var(--border-subtle);
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: default;
-      pointer-events: auto; /* Re-enable pointer events for nodes */
+      pointer-events: auto;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 16px var(--shadow);
+      animation: nodePop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transition: box-shadow 0.2s, border-color 0.2s, opacity 0.2s;
     }
-    .node.selected { border-color: var(--accent-cyan); }
+    
+    @keyframes nodePop {
+      0% { transform: scale(0.85); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .node.selected { 
+      border-color: var(--accent-blue); 
+      box-shadow: 0 0 0 2px var(--accent-blue), 0 8px 24px var(--shadow);
+    }
     .node.hidden { display: none; }
 
     .node-header {
-      padding: 8px;
+      padding: 8px 10px;
       background: var(--bg-node-header);
       border-bottom: 1px solid var(--border-subtle);
       font-size: 0.8rem;
       font-weight: 600;
-      border-radius: 6px 6px 0 0;
+      border-radius: 7px 7px 0 0;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       cursor: grab;
     }
     .node-header:active { cursor: grabbing; }
@@ -181,7 +259,7 @@
       color: var(--text-muted);
     }
     .node-body div { margin-bottom: 4px; display: flex; justify-content: space-between; }
-    .node-body span { color: var(--text-main); }
+    .node-body span { color: var(--text-main); font-weight: 500; }
 
     .node-ports {
       display: flex;
@@ -189,6 +267,7 @@
       position: relative;
       height: 0;
     }
+    
     .port {
       width: 12px; height: 12px;
       background: var(--bg-panel);
@@ -197,28 +276,46 @@
       cursor: crosshair;
       position: absolute;
       top: -6px;
+      transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
     }
-    .port:hover { border-color: var(--accent-cyan); background: var(--accent-cyan); }
+    .port:hover { 
+      transform: scale(1.4); 
+      border-color: var(--accent-cyan); 
+      background: var(--accent-cyan); 
+    }
     .port.input { left: -6px; }
     .port.output { right: -6px; }
 
-    /* --- Cables --- */
+    /* --- Cables & Signal Flow --- */
     path.connector {
-      stroke: var(--text-muted);
+      stroke: var(--accent-blue);
       stroke-width: 2.5px;
       fill: none;
       pointer-events: stroke;
       cursor: pointer;
+      stroke-dasharray: 6, 6;
+      animation: signalFlow 1s linear infinite;
+      transition: stroke 0.2s ease, stroke-width 0.2s ease;
     }
-    path.connector:hover, path.connector.selected { stroke: var(--accent-cyan); stroke-width: 4px; }
+    
+    @keyframes signalFlow {
+      from { stroke-dashoffset: 12; }
+      to { stroke-dashoffset: 0; }
+    }
+
+    path.connector:hover, path.connector.selected { 
+      stroke: var(--accent-pink); 
+      stroke-width: 4px; 
+    }
+
     path.drag-line {
-      stroke: var(--accent-blue);
+      stroke: var(--accent-cyan);
       stroke-width: 2px;
       fill: none;
       stroke-dasharray: 4, 4;
     }
 
-    /* --- Right Sidebar (Inspector & Layers) --- */
+    /* --- Right Sidebar --- */
     aside {
       width: 280px;
       background: var(--bg-panel);
@@ -226,6 +323,7 @@
       display: flex;
       flex-direction: column;
       z-index: 10;
+      box-shadow: -2px 0 10px var(--shadow);
     }
 
     .panel-section {
@@ -237,7 +335,7 @@
     .panel-section h3 {
       font-size: 0.75rem;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.6px;
       color: var(--text-muted);
       margin-bottom: 12px;
       display: flex;
@@ -246,19 +344,19 @@
     }
 
     /* Form Fields */
-    .field { margin-bottom: 10px; }
-    .field label { display: block; font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px; }
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; }
     .field input, .field select, .field textarea {
       width: 100%;
       background: var(--bg-base);
       border: 1px solid var(--border-subtle);
       color: var(--text-main);
-      padding: 6px;
-      border-radius: 4px;
+      padding: 7px;
+      border-radius: 6px;
       font-size: 0.8rem;
+      outline: none;
     }
-    .field input:focus, .field select:focus { border-color: var(--accent-blue); outline: none; }
-    .field textarea { resize: vertical; min-height: 60px; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent-blue); }
 
     /* Layers List */
     .layer-item {
@@ -268,9 +366,10 @@
       padding: 6px 8px;
       background: var(--bg-node);
       border: 1px solid var(--border-subtle);
-      border-radius: 4px;
+      border-radius: 6px;
       margin-bottom: 6px;
       font-size: 0.8rem;
+      transition: opacity 0.2s, border-color 0.2s;
     }
     .layer-item input[type="text"] {
       background: transparent;
@@ -278,16 +377,19 @@
       color: var(--text-main);
       flex: 1;
       outline: none;
+      font-size: 0.8rem;
     }
     .layer-item button.toggle {
       background: transparent;
       border: none;
-      padding: 0;
+      padding: 2px 4px;
       color: var(--text-muted);
+      cursor: pointer;
     }
-    .layer-item button.toggle:hover { color: var(--text-main); }
-    .layer-item.hidden-layer { opacity: 0.5; }
+    .layer-item button.toggle:hover { color: var(--text-main); transform: none; }
+    .layer-item.hidden-layer { opacity: 0.4; }
 
+    #file-input { display: none; }
   </style>
 </head>
 <body>
@@ -297,18 +399,22 @@
     
     <div class="toolbar-center">
       <div class="search-wrapper">
-        <input type="text" id="node-search" placeholder="Type to add device (e.g., Switch, Mixer)..." autocomplete="off">
+        <input type="text" id="node-search" placeholder="🔍 Add device (Switch, Mixer...)" autocomplete="off">
         <div id="search-dropdown" class="search-dropdown"></div>
       </div>
-      <div class="controls">
-        <button id="btn-grid" class="active" onclick="toggleGrid()">Snap to Grid</button>
-        <button onclick="snapAllNodes()">Snap All</button>
+      
+      <div class="btn-group">
+        <button id="btn-grid" class="active" onclick="toggleGrid()">Grid Snap</button>
+        <button onclick="snapAllNodes()">Align All</button>
       </div>
     </div>
 
-    <div class="controls">
-      <button onclick="resetView()">Reset View</button>
-      <button onclick="clearCanvas()">Clear</button>
+    <div class="btn-group">
+      <button onclick="exportJSON()" title="Export Design File">💾 Export</button>
+      <button onclick="importJSON()" title="Import Design File">📂 Import</button>
+      <button id="btn-theme" onclick="toggleTheme()" title="Toggle Theme">☀️ Light</button>
+      <button onclick="resetView()" title="Reset Canvas View">🎯 Center</button>
+      <button onclick="clearCanvas()" style="color: var(--accent-pink);">Clear</button>
     </div>
   </header>
 
@@ -330,27 +436,30 @@
       <div class="panel-section" style="flex: 1;">
         <h3>Inspector</h3>
         <div id="inspector-content">
-          <div style="font-size: 0.8rem; color: var(--text-muted);">Select a node or cable.</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 2rem;">Select a node or cable connection to inspect.</div>
         </div>
       </div>
     </aside>
   </div>
 
+  <input type="file" id="file-input" accept=".json" onchange="handleFileSelect(event)">
+
   <script>
-    // --- Global State ---
+    // --- Global Application State ---
     let nodes = [];
     let connections = [];
     let layers = [
-      { id: 'layer_0', name: 'Default Network', visible: true },
-      { id: 'layer_1', name: 'Audio Routing', visible: true }
+      { id: 'layer_0', name: 'Network Infrastructure', visible: true },
+      { id: 'layer_1', name: 'Audio Signal Path', visible: true }
     ];
     
     let selectedNodeId = null;
     let selectedConnId = null;
     let connectingPort = null;
     let dragNodeId = null;
+    let currentTheme = 'dark';
     
-    // Viewport State
+    // Canvas Viewport State
     let scale = 1;
     let panX = 0;
     let panY = 0;
@@ -358,7 +467,7 @@
     let snapToGrid = true;
     const GRID_SIZE = 28;
 
-    // Component Library
+    // A/V Component Library
     const componentLibrary = [
       { type: 'Network Switch', color: '#00e5ff' },
       { type: 'Audio Mixer', color: '#9d4edd' },
@@ -369,7 +478,7 @@
       { type: 'Patch Panel', color: '#8b9bb4' }
     ];
 
-    // --- DOM Elements ---
+    // DOM Elements
     const viewport = document.getElementById('viewport');
     const canvas = document.getElementById('canvas');
     const svgLayer = document.getElementById('svg-layer');
@@ -378,27 +487,31 @@
     const searchDropdown = document.getElementById('search-dropdown');
     const layersListEl = document.getElementById('layers-list');
 
-    // --- Initialization ---
     function init() {
       renderLayers();
       setupSearch();
       setupViewportControls();
       
-      // Seed data
+      // Default initial layout
       createNode('Network Switch', layers[0].id, 140, 140);
       createNode('Audio Mixer', layers[1].id, 440, 140);
     }
 
-    // --- Viewport & Panning/Zooming ---
+    // --- Theme Toggle ---
+    function toggleTheme() {
+      currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', currentTheme);
+      document.getElementById('btn-theme').innerText = currentTheme === 'dark' ? '☀️ Light' : '🌙 Dark';
+    }
+
+    // --- Viewport & Canvas Pan / Zoom ---
     function setupViewportControls() {
-      // Zoom
       viewport.addEventListener('wheel', (e) => {
         e.preventDefault();
         const zoomIntensity = 0.001;
         const delta = -e.deltaY * zoomIntensity;
         let newScale = Math.min(Math.max(0.2, scale + delta), 3);
         
-        // Zoom towards mouse
         const rect = viewport.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -410,11 +523,10 @@
         applyTransform();
       }, { passive: false });
 
-      // Pan (Middle click or Space+Click)
       viewport.addEventListener('mousedown', (e) => {
         if (e.button === 1 || (e.button === 0 && e.target === viewport)) {
           isPanning = true;
-          document.body.style.cursor = 'grabbing';
+          viewport.style.cursor = 'grabbing';
         }
       });
 
@@ -427,7 +539,6 @@
         
         if (dragNodeId) {
           const node = nodes.find(n => n.id === dragNodeId);
-          // Adjust movement by scale
           node.x += e.movementX / scale;
           node.y += e.movementY / scale;
           updateNodePositionDOM(node);
@@ -450,7 +561,7 @@
 
       window.addEventListener('mouseup', (e) => {
         isPanning = false;
-        document.body.style.cursor = '';
+        viewport.style.cursor = 'grab';
         
         if (dragNodeId && snapToGrid) {
           const node = nodes.find(n => n.id === dragNodeId);
@@ -476,7 +587,6 @@
 
     function applyTransform() {
       canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-      // Keep grid visually aligned
       viewport.style.backgroundPosition = `${panX}px ${panY}px`;
       viewport.style.backgroundSize = `${GRID_SIZE * scale}px ${GRID_SIZE * scale}px`;
     }
@@ -486,7 +596,7 @@
       applyTransform();
     }
 
-    // --- Search & Add Nodes ---
+    // --- Search & Device Spawning ---
     function setupSearch() {
       const renderResults = (query) => {
         searchDropdown.innerHTML = '';
@@ -497,7 +607,7 @@
           const div = document.createElement('div');
           div.className = 'search-item';
           div.innerHTML = `<div class="color-dot" style="background:${comp.color}"></div> ${comp.type}`;
-          div.onmousedown = () => { // mousedown fires before blur
+          div.onmousedown = () => {
             const viewCenterX = (-panX + viewport.clientWidth / 2) / scale;
             const viewCenterY = (-panY + viewport.clientHeight / 2) / scale;
             createNode(comp.type, layers[0].id, viewCenterX - 100, viewCenterY - 40, comp.color);
@@ -528,7 +638,7 @@
       updateConnections();
     }
 
-    // --- Layer Management ---
+    // --- Layer Controls ---
     function renderLayers() {
       layersListEl.innerHTML = '';
       layers.forEach(layer => {
@@ -544,7 +654,7 @@
     }
 
     function addLayer() {
-      layers.push({ id: 'layer_' + Date.now(), name: 'New Layer', visible: true });
+      layers.push({ id: 'layer_' + Date.now(), name: 'New System Layer', visible: true });
       renderLayers();
     }
 
@@ -557,7 +667,7 @@
     function updateLayerName(id, name) {
       const layer = layers.find(l => l.id === id);
       if (layer) layer.name = name;
-      if (selectedNodeId) selectNode(selectedNodeId); // Refresh inspector if open
+      if (selectedNodeId) selectNode(selectedNodeId);
     }
 
     function refreshVisibility() {
@@ -572,7 +682,7 @@
       updateConnections();
     }
 
-    // --- Nodes & Canvas ---
+    // --- Node Creation & Rendering ---
     function createNode(type, layerId, x, y, color) {
       if (!color) {
         const libItem = componentLibrary.find(c => c.type === type);
@@ -585,7 +695,7 @@
       }
 
       const id = 'node_' + Date.now();
-      const node = { id, type, layerId, label: type, color, x, y, ip: '192.168.1.X' };
+      const node = { id, type, layerId, label: type, color, x, y, ip: '192.168.1.' + Math.floor(Math.random()*200 + 10) };
       nodes.push(node);
       renderNodeToDOM(node);
       selectNode(id);
@@ -602,7 +712,7 @@
           <span class="lbl">${node.label}</span>
         </div>
         <div class="node-body">
-          <div>IP <span class="ip-tag">${node.ip}</span></div>
+          <div>IP/ID <span class="ip-tag">${node.ip}</span></div>
         </div>
         <div class="node-ports">
           <div class="port input" data-node="${node.id}" data-port="input"></div>
@@ -627,7 +737,6 @@
           connectingPort = {
             nodeId: node.id,
             type: port.dataset.port,
-            // Calculate absolute coordinate within the canvas element
             x: (rect.left - viewRect.left + rect.width / 2) / scale,
             y: (rect.top - viewRect.top + rect.height / 2) / scale
           };
@@ -648,7 +757,7 @@
       }
     }
 
-    // --- Connections ---
+    // --- Cable Connections ---
     function createConnection(fromId, toId) {
       if (connections.some(c => c.from === fromId && c.to === toId)) return;
       connections.push({ id: 'conn_' + Date.now(), from: fromId, to: toId });
@@ -662,7 +771,6 @@
         const fromNode = nodes.find(n => n.id === conn.from);
         const toNode = nodes.find(n => n.id === conn.to);
         
-        // Hide connection if either parent layer is hidden
         const fromLayer = layers.find(l => l.id === fromNode?.layerId);
         const toLayer = layers.find(l => l.id === toNode?.layerId);
         if ((fromLayer && !fromLayer.visible) || (toLayer && !toLayer.visible)) return;
@@ -691,7 +799,7 @@
       });
     }
 
-    // --- Inspector / Selections ---
+    // --- Inspector ---
     function selectNode(id) {
       selectedNodeId = id;
       selectedConnId = null;
@@ -706,18 +814,18 @@
 
       document.getElementById('inspector-content').innerHTML = `
         <div class="field">
-          <label>Label</label>
+          <label>Device Name</label>
           <input type="text" value="${node.label}" oninput="updateProp('${id}', 'label', this.value)">
         </div>
         <div class="field">
-          <label>IP Address</label>
+          <label>IP / ID Address</label>
           <input type="text" value="${node.ip}" oninput="updateProp('${id}', 'ip', this.value)">
         </div>
         <div class="field">
-          <label>Assign Layer</label>
+          <label>Assigned System Layer</label>
           <select onchange="updateProp('${id}', 'layerId', this.value)">${layerOpts}</select>
         </div>
-        <button onclick="deleteNode('${id}')" style="margin-top:10px; width:100%; border-color:#ff006e; color:#ff006e;">Delete Node</button>
+        <button onclick="deleteNode('${id}')" style="margin-top:12px; width:100%; border-color:var(--accent-pink); color:var(--accent-pink);">Remove Device</button>
       `;
     }
 
@@ -728,8 +836,8 @@
       updateConnections();
 
       document.getElementById('inspector-content').innerHTML = `
-        <div class="field"><label>Cable Connection</label><span>Active link</span></div>
-        <button onclick="deleteConnection('${id}')" style="margin-top:10px; width:100%; border-color:#ff006e; color:#ff006e;">Delete Cable</button>
+        <div class="field"><label>Cable Connection</label><span style="font-size:0.8rem;">Active Signal Routing Path</span></div>
+        <button onclick="deleteConnection('${id}')" style="margin-top:12px; width:100%; border-color:var(--accent-pink); color:var(--accent-pink);">Remove Cable Path</button>
       `;
     }
 
@@ -744,7 +852,7 @@
       }
     }
 
-    // --- Deletions / Utilities ---
+    // --- Deletions & Canvas Management ---
     function deleteNode(id) {
       nodes = nodes.filter(n => n.id !== id);
       connections = connections.filter(c => c.from !== id && c.to !== id);
@@ -761,15 +869,71 @@
 
     function clearInspector() {
       selectedNodeId = null; selectedConnId = null;
-      document.getElementById('inspector-content').innerHTML = '<div style="font-size: 0.8rem; color: var(--text-muted);">Select a node or cable.</div>';
+      document.getElementById('inspector-content').innerHTML = '<div style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 2rem;">Select a node or connection.</div>';
     }
 
-    function clearCanvas() {
-      if(confirm('Clear entire schematic?')) {
+    function clearCanvas(confirmPrompt = true) {
+      if (!confirmPrompt || confirm('Clear entire schematic?')) {
         nodes = []; connections = [];
         document.querySelectorAll('.node').forEach(n => n.remove());
         updateConnections(); clearInspector();
       }
+    }
+
+    // --- Import & Export JSON ---
+    function exportJSON() {
+      const schematicData = {
+        version: "2026.1",
+        timestamp: new Date().toISOString(),
+        layers,
+        nodes,
+        connections,
+        viewport: { scale, panX, panY }
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(schematicData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `node-labs-design-${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function importJSON() {
+      document.getElementById('file-input').click();
+    }
+
+    function handleFileSelect(evt) {
+      const file = evt.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          clearCanvas(false);
+          
+          layers = data.layers || [];
+          nodes = data.nodes || [];
+          connections = data.connections || [];
+          
+          if (data.viewport) {
+            scale = data.viewport.scale || 1;
+            panX = data.viewport.panX || 0;
+            panY = data.viewport.panY || 0;
+            applyTransform();
+          }
+
+          renderLayers();
+          nodes.forEach(node => renderNodeToDOM(node));
+          updateConnections();
+        } catch (err) {
+          alert('Failed to parse schematic file. Please select a valid Node Labs JSON export.');
+        }
+      };
+      reader.readAsText(file);
+      evt.target.value = '';
     }
 
     window.addEventListener('keydown', (e) => {
@@ -780,7 +944,6 @@
       }
     });
 
-    // Boot
     window.onload = init;
   </script>
 </body>
