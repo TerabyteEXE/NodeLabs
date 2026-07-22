@@ -188,29 +188,64 @@ function deselectAll() {
 function setupSearch() {
   const renderResults = (query) => {
     searchDropdown.innerHTML = '';
-    const filtered = componentLibrary.filter(c => c.type.toLowerCase().includes(query.toLowerCase()));
-    if (filtered.length === 0) searchDropdown.innerHTML = '<div class="search-item">No devices found</div>';
+    
+    // Safely access componentLibrary whether declared globally or on window
+    const library = (typeof componentLibrary !== 'undefined' ? componentLibrary : window.componentLibrary) || [];
+
+    const searchQuery = (query || '').toLowerCase().trim();
+    const filtered = library.filter(c => c.type && c.type.toLowerCase().includes(searchQuery));
+    
+    if (filtered.length === 0) {
+      searchDropdown.innerHTML = '<div class="search-item" style="color:var(--text-muted, #888); cursor:default;">No devices found</div>';
+      return;
+    }
     
     filtered.forEach(comp => {
       const div = document.createElement('div');
       div.className = 'search-item';
-      div.innerHTML = `<div class="color-dot" style="background:${comp.color}"></div> ${comp.type}`;
-      div.onmousedown = () => {
+      div.innerHTML = `<div class="color-dot" style="background:${comp.color || '#3a86ff'}"></div> ${comp.type}`;
+      
+      div.onmousedown = (e) => {
+        e.preventDefault(); // Prevents input blur from firing early
+        
         const viewCenterX = (-panX + viewport.clientWidth / 2) / scale;
         const viewCenterY = (-panY + viewport.clientHeight / 2) / scale;
-        createNode(comp.type, layers[0].id, viewCenterX - 100, viewCenterY - 40, comp.color, comp.inPorts || 1, comp.outPorts || 1);
+        
+        // Fallback target layer in case layers array is empty
+        const targetLayerId = layers.length > 0 ? layers[0].id : 'layer_0';
+        
+        createNode(
+          comp.type, 
+          targetLayerId, 
+          viewCenterX - 100, 
+          viewCenterY - 40, 
+          comp.color, 
+          comp.inPorts !== undefined ? comp.inPorts : 1, 
+          comp.outPorts !== undefined ? comp.outPorts : 1
+        );
+        
         searchInput.value = '';
         searchDropdown.classList.remove('active');
       };
+
       searchDropdown.appendChild(div);
     });
   };
 
-  searchInput.addEventListener('focus', () => { searchDropdown.classList.add('active'); renderResults(searchInput.value); });
-  searchInput.addEventListener('input', (e) => renderResults(e.target.value));
-  searchInput.addEventListener('blur', () => setTimeout(() => searchDropdown.classList.remove('active'), 150));
-}
+  searchInput.addEventListener('focus', () => { 
+    searchDropdown.classList.add('active'); 
+    renderResults(searchInput.value); 
+  });
 
+  searchInput.addEventListener('input', (e) => {
+    searchDropdown.classList.add('active'); // Re-enable active state on typing
+    renderResults(e.target.value);
+  });
+
+  searchInput.addEventListener('blur', () => {
+    setTimeout(() => searchDropdown.classList.remove('active'), 200);
+  });
+}
 // --- Backdrops ---
 function addBackdrop(title = 'System Zone', x = 200, y = 200, w = 300, h = 200, color = '#3a86ff') {
   const id = 'bd_' + Date.now();
