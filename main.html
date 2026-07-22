@@ -290,7 +290,7 @@
     .node-body div { margin-bottom: 4px; display: flex; justify-content: space-between; }
     .node-body span { color: var(--text-main); font-weight: 500; }
 
-    /* Ports Container & Dynamic Positioning */
+    /* Ports Container */
     .port-column {
       position: absolute;
       top: 36px;
@@ -319,8 +319,9 @@
       background: var(--accent-cyan); 
     }
 
-    /* --- Cables & Gradient Customization --- */
+    /* --- Cables & Gradient Fallback --- */
     path.connector {
+      stroke: var(--accent-blue); /* Fallback color so paths are always visible */
       stroke-width: 2.5px;
       fill: none;
       pointer-events: stroke;
@@ -488,7 +489,6 @@
     let snapToGrid = true;
     const GRID_SIZE = 28;
 
-    // Component library defaulting to 1 port per side
     const componentLibrary = [
       { type: 'Network Switch', color: '#00e5ff', inPorts: 1, outPorts: 1 },
       { type: 'Audio Mixer', color: '#9d4edd', inPorts: 1, outPorts: 1 },
@@ -513,8 +513,20 @@
       
       // Default starting state
       addBackdrop('Audio Rack Group', 100, 100, 420, 260, '#9d4edd');
-      createNode('Network Switch', layers[0].id, 140, 150, '#00e5ff', 1, 1);
-      createNode('Audio Mixer', layers[1].id, 460, 150, '#9d4edd', 1, 1);
+      
+      // Node IDs created deterministically to allow baseline connection
+      const node1Id = 'node_init_1';
+      const node2Id = 'node_init_2';
+
+      createNodeWithId(node1Id, 'Network Switch', layers[0].id, 140, 150, '#00e5ff', 1, 1);
+      createNodeWithId(node2Id, 'Audio Mixer', layers[1].id, 460, 150, '#9d4edd', 1, 1);
+      
+      createConnection(node1Id, 0, node2Id, 0);
+
+      // Render connectors on initial paint frame
+      requestAnimationFrame(() => {
+        updateConnections();
+      });
     }
 
     // --- Theme & Viewport Controls ---
@@ -562,7 +574,6 @@
           updateConnections();
         }
 
-        // Independent Backdrop Movement (Nodes inside remain untouched)
         if (dragBackdrop) {
           const bd = backdrops.find(b => b.id === dragBackdrop.id);
           bd.x += e.movementX / scale;
@@ -610,9 +621,9 @@
           const targetPort = e.target.closest('.port');
           if (targetPort && targetPort.dataset.node !== connectingPort.nodeId && targetPort.dataset.port !== connectingPort.type) {
             const fromId = connectingPort.type === 'output' ? connectingPort.nodeId : targetPort.dataset.node;
-            const fromIdx = connectingPort.type === 'output' ? connectingPort.index : targetPort.dataset.index;
+            const fromIdx = parseInt(connectingPort.type === 'output' ? connectingPort.index : targetPort.dataset.index);
             const toId = connectingPort.type === 'output' ? targetPort.dataset.node : connectingPort.nodeId;
-            const toIdx = connectingPort.type === 'output' ? targetPort.dataset.index : connectingPort.index;
+            const toIdx = parseInt(connectingPort.type === 'output' ? targetPort.dataset.index : connectingPort.index);
             
             createConnection(fromId, fromIdx, toId, toIdx);
           }
@@ -641,7 +652,7 @@
       renderInspector();
     }
 
-    // --- Dynamic Search ---
+    // --- Search ---
     function setupSearch() {
       const renderResults = (query) => {
         searchDropdown.innerHTML = '';
@@ -668,7 +679,7 @@
       searchInput.addEventListener('blur', () => setTimeout(() => searchDropdown.classList.remove('active'), 150));
     }
 
-    // --- UE5 Backdrop Features ---
+    // --- Backdrops ---
     function addBackdrop(title = 'System Zone', x = 200, y = 200, w = 300, h = 200, color = '#3a86ff') {
       const id = 'bd_' + Date.now();
       const bd = { id, title, x, y, w, h, color };
@@ -717,15 +728,17 @@
       }
     }
 
-    // --- Nodes Management & Mounting Points ---
-    // Defaulting inPorts and outPorts to 1
+    // --- Nodes Management ---
     function createNode(type, layerId, x, y, color, inPorts = 1, outPorts = 1) {
+      createNodeWithId('node_' + Date.now(), type, layerId, x, y, color, inPorts, outPorts);
+    }
+
+    function createNodeWithId(id, type, layerId, x, y, color, inPorts = 1, outPorts = 1) {
       if (snapToGrid) {
         x = Math.round(x / GRID_SIZE) * GRID_SIZE;
         y = Math.round(y / GRID_SIZE) * GRID_SIZE;
       }
 
-      const id = 'node_' + Date.now();
       const node = { 
         id, type, layerId, label: type, color, x, y, 
         inPorts: inPorts !== undefined ? parseInt(inPorts) : 1, 
@@ -786,7 +799,7 @@
           connectingPort = {
             nodeId: node.id,
             type: port.dataset.port,
-            index: port.dataset.index,
+            index: parseInt(port.dataset.index),
             x: (rect.left - viewRect.left + rect.width / 2) / scale,
             y: (rect.top - viewRect.top + rect.height / 2) / scale
           };
@@ -807,7 +820,7 @@
       }
     }
 
-    // --- Cable Connections & Two-Tone Gradient ---
+    // --- Dynamic Connections & Gradient Pathing ---
     function createConnection(fromId, fromIdx, toId, toIdx) {
       if (connections.some(c => c.from === fromId && c.fromIdx === fromIdx && c.to === toId && c.toIdx === toIdx)) return;
       connections.push({ id: 'conn_' + Date.now(), from: fromId, fromIdx, to: toId, toIdx });
@@ -817,7 +830,6 @@
     function updateConnections() {
       svgLayer.querySelectorAll('.connector').forEach(el => el.remove());
 
-      // Ensure <defs> tag exists for storing dynamic gradients
       let defs = svgLayer.querySelector('defs');
       if (!defs) {
         defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
@@ -847,7 +859,6 @@
           const x2 = (rB.left - viewRect.left + rB.width / 2) / scale;
           const y2 = (rB.top - viewRect.top + rB.height / 2) / scale;
 
-          // Create SVG Linear Gradient dynamically mapping x1,y1 -> x2,y2
           const gradId = `grad_${conn.id}`;
           const grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
           grad.setAttribute('id', gradId);
@@ -857,12 +868,10 @@
           grad.setAttribute('x2', x2);
           grad.setAttribute('y2', y2);
 
-          // Outgoing Stop (Blue)
           const stopStart = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
           stopStart.setAttribute('offset', '0%');
           stopStart.setAttribute('stop-color', '#3a86ff'); 
 
-          // Incoming Stop (Purple)
           const stopEnd = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
           stopEnd.setAttribute('offset', '100%');
           stopEnd.setAttribute('stop-color', '#9d4edd'); 
@@ -871,7 +880,6 @@
           grad.appendChild(stopEnd);
           defs.appendChild(grad);
 
-          // Path routing
           const dx = Math.abs(x2 - x1) * 0.5;
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           path.setAttribute('d', `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`);
@@ -971,7 +979,6 @@
       }
     }
 
-    // --- Node Property Updaters ---
     function updateNodeProp(id, prop, val) {
       const node = nodes.find(n => n.id === id);
       if (!node) return;
@@ -1018,7 +1025,7 @@
       }
     }
 
-    // --- Layers Management ---
+    // --- Layer Operations ---
     function renderLayers() {
       layersListEl.innerHTML = '';
       layers.forEach(layer => {
@@ -1058,7 +1065,7 @@
       updateConnections();
     }
 
-    // --- Canvas Actions & Cleanup ---
+    // --- Deletions & Canvas Utilities ---
     function deleteNode(id) {
       nodes = nodes.filter(n => n.id !== id);
       connections = connections.filter(c => c.from !== id && c.to !== id);
@@ -1102,7 +1109,7 @@
       updateConnections();
     }
 
-    // --- File Storage Import/Export ---
+    // --- Import / Export System ---
     function exportJSON() {
       const schematicData = { version: "2026.2", layers, backdrops, nodes, connections, viewport: { scale, panX, panY } };
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(schematicData, null, 2));
@@ -1142,7 +1149,10 @@
           renderLayers();
           backdrops.forEach(bd => renderBackdropToDOM(bd));
           nodes.forEach(node => renderNodeToDOM(node));
-          updateConnections();
+          
+          requestAnimationFrame(() => {
+            updateConnections();
+          });
           deselectAll();
         } catch (err) {
           alert('Failed to parse project JSON file.');
