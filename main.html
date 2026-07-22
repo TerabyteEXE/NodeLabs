@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Node Labs - Pro A/V & Unreal System Builder</title>
+  <title>Node Labs</title>
   <style>
     /* --- CSS Variables --- */
     :root[data-theme="dark"] {
@@ -319,9 +319,8 @@
       background: var(--accent-cyan); 
     }
 
-    /* --- Cables --- */
+    /* --- Cables & Gradient Customization --- */
     path.connector {
-      stroke: var(--accent-blue);
       stroke-width: 2.5px;
       fill: none;
       pointer-events: stroke;
@@ -336,7 +335,7 @@
     }
 
     path.connector:hover, path.connector.selected { 
-      stroke: var(--accent-pink); 
+      stroke: var(--accent-pink) !important; 
       stroke-width: 4px; 
     }
 
@@ -489,13 +488,14 @@
     let snapToGrid = true;
     const GRID_SIZE = 28;
 
+    // Component library defaulting to 1 port per side
     const componentLibrary = [
-      { type: 'Network Switch', color: '#00e5ff', inPorts: 2, outPorts: 8 },
-      { type: 'Audio Mixer', color: '#9d4edd', inPorts: 4, outPorts: 4 },
-      { type: 'Computer / PC', color: '#ff006e', inPorts: 1, outPorts: 2 },
-      { type: 'Display / Monitor', color: '#3a86ff', inPorts: 2, outPorts: 0 },
-      { type: 'Speaker Array', color: '#fb5607', inPorts: 1, outPorts: 0 },
-      { type: 'Microphone RX', color: '#ffbe0b', inPorts: 0, outPorts: 2 }
+      { type: 'Network Switch', color: '#00e5ff', inPorts: 1, outPorts: 1 },
+      { type: 'Audio Mixer', color: '#9d4edd', inPorts: 1, outPorts: 1 },
+      { type: 'Computer / PC', color: '#ff006e', inPorts: 1, outPorts: 1 },
+      { type: 'Display / Monitor', color: '#3a86ff', inPorts: 1, outPorts: 1 },
+      { type: 'Speaker Array', color: '#fb5607', inPorts: 1, outPorts: 1 },
+      { type: 'Microphone RX', color: '#ffbe0b', inPorts: 1, outPorts: 1 }
     ];
 
     const viewport = document.getElementById('viewport');
@@ -513,8 +513,8 @@
       
       // Default starting state
       addBackdrop('Audio Rack Group', 100, 100, 420, 260, '#9d4edd');
-      createNode('Network Switch', layers[0].id, 140, 150, '#00e5ff', 2, 8);
-      createNode('Audio Mixer', layers[1].id, 460, 150, '#9d4edd', 4, 4);
+      createNode('Network Switch', layers[0].id, 140, 150, '#00e5ff', 1, 1);
+      createNode('Audio Mixer', layers[1].id, 460, 150, '#9d4edd', 1, 1);
     }
 
     // --- Theme & Viewport Controls ---
@@ -562,26 +562,12 @@
           updateConnections();
         }
 
+        // Independent Backdrop Movement (Nodes inside remain untouched)
         if (dragBackdrop) {
           const bd = backdrops.find(b => b.id === dragBackdrop.id);
-          const dx = e.movementX / scale;
-          const dy = e.movementY / scale;
-          bd.x += dx;
-          bd.y += dy;
-          
-          // Move internal nodes along with backdrop
-          nodes.forEach(n => {
-            if (n.x >= dragBackdrop.initialX && n.x <= dragBackdrop.initialX + bd.w &&
-                n.y >= dragBackdrop.initialY && n.y <= dragBackdrop.initialY + bd.h) {
-              n.x += dx;
-              n.y += dy;
-              updateNodePositionDOM(n);
-            }
-          });
-          dragBackdrop.initialX += dx;
-          dragBackdrop.initialY += dy;
+          bd.x += e.movementX / scale;
+          bd.y += e.movementY / scale;
           updateBackdropDOM(bd);
-          updateConnections();
         }
 
         if (resizingBackdrop) {
@@ -669,7 +655,7 @@
           div.onmousedown = () => {
             const viewCenterX = (-panX + viewport.clientWidth / 2) / scale;
             const viewCenterY = (-panY + viewport.clientHeight / 2) / scale;
-            createNode(comp.type, layers[0].id, viewCenterX - 100, viewCenterY - 40, comp.color, comp.inPorts, comp.outPorts);
+            createNode(comp.type, layers[0].id, viewCenterX - 100, viewCenterY - 40, comp.color, 1, 1);
             searchInput.value = '';
             searchDropdown.classList.remove('active');
           };
@@ -705,7 +691,7 @@
       const header = el.querySelector('.backdrop-header');
       header.addEventListener('mousedown', (e) => {
         e.stopPropagation();
-        dragBackdrop = { id: bd.id, initialX: bd.x, initialY: bd.y };
+        dragBackdrop = { id: bd.id };
         selectBackdrop(bd.id);
       });
 
@@ -732,6 +718,7 @@
     }
 
     // --- Nodes Management & Mounting Points ---
+    // Defaulting inPorts and outPorts to 1
     function createNode(type, layerId, x, y, color, inPorts = 1, outPorts = 1) {
       if (snapToGrid) {
         x = Math.round(x / GRID_SIZE) * GRID_SIZE;
@@ -741,7 +728,8 @@
       const id = 'node_' + Date.now();
       const node = { 
         id, type, layerId, label: type, color, x, y, 
-        inPorts: parseInt(inPorts), outPorts: parseInt(outPorts),
+        inPorts: inPorts !== undefined ? parseInt(inPorts) : 1, 
+        outPorts: outPorts !== undefined ? parseInt(outPorts) : 1,
         starred: false, highlighted: false,
         ip: '192.168.1.' + Math.floor(Math.random()*200 + 10) 
       };
@@ -819,7 +807,7 @@
       }
     }
 
-    // --- Cable Connections ---
+    // --- Cable Connections & Two-Tone Gradient ---
     function createConnection(fromId, fromIdx, toId, toIdx) {
       if (connections.some(c => c.from === fromId && c.fromIdx === fromIdx && c.to === toId && c.toIdx === toIdx)) return;
       connections.push({ id: 'conn_' + Date.now(), from: fromId, fromIdx, to: toId, toIdx });
@@ -828,6 +816,15 @@
 
     function updateConnections() {
       svgLayer.querySelectorAll('.connector').forEach(el => el.remove());
+
+      // Ensure <defs> tag exists for storing dynamic gradients
+      let defs = svgLayer.querySelector('defs');
+      if (!defs) {
+        defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        svgLayer.prepend(defs);
+      } else {
+        defs.innerHTML = ''; 
+      }
 
       connections.forEach(conn => {
         const fromNode = nodes.find(n => n.id === conn.from);
@@ -850,10 +847,39 @@
           const x2 = (rB.left - viewRect.left + rB.width / 2) / scale;
           const y2 = (rB.top - viewRect.top + rB.height / 2) / scale;
 
+          // Create SVG Linear Gradient dynamically mapping x1,y1 -> x2,y2
+          const gradId = `grad_${conn.id}`;
+          const grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+          grad.setAttribute('id', gradId);
+          grad.setAttribute('gradientUnits', 'userSpaceOnUse');
+          grad.setAttribute('x1', x1);
+          grad.setAttribute('y1', y1);
+          grad.setAttribute('x2', x2);
+          grad.setAttribute('y2', y2);
+
+          // Outgoing Stop (Blue)
+          const stopStart = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+          stopStart.setAttribute('offset', '0%');
+          stopStart.setAttribute('stop-color', '#3a86ff'); 
+
+          // Incoming Stop (Purple)
+          const stopEnd = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+          stopEnd.setAttribute('offset', '100%');
+          stopEnd.setAttribute('stop-color', '#9d4edd'); 
+
+          grad.appendChild(stopStart);
+          grad.appendChild(stopEnd);
+          defs.appendChild(grad);
+
+          // Path routing
           const dx = Math.abs(x2 - x1) * 0.5;
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           path.setAttribute('d', `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`);
           path.setAttribute('class', `connector ${selectedConnId === conn.id ? 'selected' : ''}`);
+          
+          if (selectedConnId !== conn.id) {
+            path.setAttribute('stroke', `url(#${gradId})`);
+          }
           
           path.onmousedown = (e) => { e.stopPropagation(); selectConnection(conn.id); };
           svgLayer.appendChild(path);
@@ -954,7 +980,6 @@
       node[prop] = val;
       
       if (prop === 'inPorts' || prop === 'outPorts' || prop === 'color') {
-        // Re-render node structure when ports or colors change dynamically
         const el = document.getElementById(id);
         el.remove();
         renderNodeToDOM(node);
