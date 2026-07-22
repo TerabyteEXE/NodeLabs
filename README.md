@@ -10,18 +10,18 @@
 
 ## 📸 Overview
 
-**Node Labs** is an open-source, web-based visual mapping tool designed specifically for Audio/Visual (A/V) system mapping. It provides an intuitive canvas to model complex production studio workflows, signal chains, and rack setups.
+**Node Labs** is an open-source, web-based visual mapping tool designed specifically for Audio/Visual (A/V) system mapping. It provides an intuitive canvas to model complex production studio setups, signals, and rack setups.
 
-Whether you are mapping out a high-channel audio mixer setup, tracking IP-based video routing, or troubleshooting signal flow across multiple zones, Node Labs simplifies system visualization so you can resolve technical issues quickly.
+Whether you are mapping out a audio mixer setup, tracking IP-based video routing, or troubleshooting signal flow across your setup, Node Labs simplifies system visualization so you can resolve technical issues quickly.
 
 ---
 
 ## ✨ Key Features
 
-* **Node-Based Cable Routing:** Connect devices with interactive bezier cable paths and visual signal flow direction.
-* **Granular Detail & Metadata:** Assign custom labels, IP addresses, port definitions, and custom accent colors to each device.
+* **Node-Based Cable Routing:** Connect devices with interactive bezier cable paths and visual signal flow direction(mostly for looks).
+* **Granular Detail & Metadata:** Assign custom labels, IP addresses or IDs, port numbers, and custom accent colors to each device.
 * **Custom Backdrop Groups:** Organize related equipment into visual zones (e.g., *Audio Rack*, *Master Control Room*, *Stage Box*).
-* **Layer Management:** Hide or show entire signal paths (e.g., Infrastructure vs. Audio Path) to reduce canvas noise.
+* **Layer Management:** Hide or show entire signal paths (e.g., PC vs. Audio Path) to make it easier to understand.
 * **Modular Node Library:** Easily extensible component templates for Switches, Mixers, Monitors, Speakers, Microphones, and PCs.
 * **Light & Dark Themes:** Seamless UI theme toggling for low-light control rooms or bright workspace environments.
 * **Local Project Persistence:** Save and load your complete schematic diagrams via lightweight JSON project files.
@@ -31,7 +31,7 @@ Whether you are mapping out a high-channel audio mixer setup, tracking IP-based 
 
 ## 📁 Repository Structure
 
-Node Labs is structured for scalability and easy customization:
+Structured for simplicity
 
 ```text
 node-labs/
