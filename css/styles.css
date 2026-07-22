@@ -427,4 +427,16 @@ aside {
   flex: 1;
   outline: none;
 }
+.layer-item button {
+  background: transparent;
+  border: none;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.layer-item button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: transparent;
+}
 #file-input { display: none; }
