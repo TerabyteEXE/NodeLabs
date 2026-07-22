@@ -23,16 +23,18 @@ let isPanning = false;
 let snapToGrid = true;
 const GRID_SIZE = 28;
 
-const viewport = document.getElementById('viewport');
-const canvas = document.getElementById('canvas');
-const svgLayer = document.getElementById('svg-layer');
-const dragLine = document.getElementById('drag-line');
-const searchInput = document.getElementById('node-search');
-const searchDropdown = document.getElementById('search-dropdown');
-const layersListEl = document.getElementById('layers-list');
-const projectNameInput = document.getElementById('project-name');
+let viewport, canvas, svgLayer, dragLine, searchInput, searchDropdown, layersListEl, projectNameInput;
 
 function init() {
+  viewport = document.getElementById('viewport');
+  canvas = document.getElementById('canvas');
+  svgLayer = document.getElementById('svg-layer');
+  dragLine = document.getElementById('drag-line');
+  searchInput = document.getElementById('node-search');
+  searchDropdown = document.getElementById('search-dropdown');
+  layersListEl = document.getElementById('layers-list');
+  projectNameInput = document.getElementById('project-name');
+
   renderLayers();
   setupSearch();
   setupViewportControls();
@@ -91,32 +93,40 @@ function setupViewportControls() {
     
     if (dragNodeId) {
       const node = nodes.find(n => n.id === dragNodeId);
-      node.x += e.movementX / scale;
-      node.y += e.movementY / scale;
-      updateNodePositionDOM(node);
-      updateConnections();
+      if (node) {
+        node.x += e.movementX / scale;
+        node.y += e.movementY / scale;
+        updateNodePositionDOM(node);
+        updateConnections();
+      }
     }
 
     if (resizingNode) {
       const node = nodes.find(n => n.id === resizingNode);
-      node.w = Math.max(160, node.w + e.movementX / scale);
-      node.h = Math.max(100, node.h + e.movementY / scale);
-      updateNodeSizeDOM(node);
-      updateConnections();
+      if (node) {
+        node.w = Math.max(160, node.w + e.movementX / scale);
+        node.h = Math.max(100, node.h + e.movementY / scale);
+        updateNodeSizeDOM(node);
+        updateConnections();
+      }
     }
 
     if (dragBackdrop) {
       const bd = backdrops.find(b => b.id === dragBackdrop.id);
-      bd.x += e.movementX / scale;
-      bd.y += e.movementY / scale;
-      updateBackdropDOM(bd);
+      if (bd) {
+        bd.x += e.movementX / scale;
+        bd.y += e.movementY / scale;
+        updateBackdropDOM(bd);
+      }
     }
 
     if (resizingBackdrop) {
       const bd = backdrops.find(b => b.id === resizingBackdrop);
-      bd.w = Math.max(150, bd.w + e.movementX / scale);
-      bd.h = Math.max(100, bd.h + e.movementY / scale);
-      updateBackdropDOM(bd);
+      if (bd) {
+        bd.w = Math.max(150, bd.w + e.movementX / scale);
+        bd.h = Math.max(100, bd.h + e.movementY / scale);
+        updateBackdropDOM(bd);
+      }
     }
 
     if (connectingPort) {
@@ -139,10 +149,12 @@ function setupViewportControls() {
     
     if (dragNodeId && snapToGrid) {
       const node = nodes.find(n => n.id === dragNodeId);
-      node.x = Math.round(node.x / GRID_SIZE) * GRID_SIZE;
-      node.y = Math.round(node.y / GRID_SIZE) * GRID_SIZE;
-      updateNodePositionDOM(node);
-      updateConnections();
+      if (node) {
+        node.x = Math.round(node.x / GRID_SIZE) * GRID_SIZE;
+        node.y = Math.round(node.y / GRID_SIZE) * GRID_SIZE;
+        updateNodePositionDOM(node);
+        updateConnections();
+      }
     }
     dragNodeId = null;
     dragBackdrop = null;
@@ -189,30 +201,27 @@ function setupSearch() {
   const renderResults = (query) => {
     searchDropdown.innerHTML = '';
     
-    // Safely access componentLibrary whether declared globally or on window
     const library = (typeof componentLibrary !== 'undefined' ? componentLibrary : window.componentLibrary) || [];
-
     const searchQuery = (query || '').toLowerCase().trim();
     const filtered = library.filter(c => c.type && c.type.toLowerCase().includes(searchQuery));
     
     if (filtered.length === 0) {
-      searchDropdown.innerHTML = '<div class="search-item" style="color:var(--text-muted, #888); cursor:default;">No devices found</div>';
+      searchDropdown.innerHTML = '<div class="search-item" style="color:var(--text-muted); cursor:default;">No devices found</div>';
       return;
     }
     
     filtered.forEach(comp => {
       const div = document.createElement('div');
       div.className = 'search-item';
-      div.innerHTML = `<div class="color-dot" style="background:${comp.color || '#3a86ff'}"></div> ${comp.type}`;
+      div.innerHTML = `<div class="color-dot" style="background:${comp.color || '#00e5ff'}"></div> ${comp.type}`;
       
       div.onmousedown = (e) => {
-        e.preventDefault(); // Prevents input blur from firing early
+        e.preventDefault();
         
         const viewCenterX = (-panX + viewport.clientWidth / 2) / scale;
         const viewCenterY = (-panY + viewport.clientHeight / 2) / scale;
         
-        // Fallback target layer in case layers array is empty
-        const targetLayerId = layers.length > 0 ? layers[0].id : 'layer_0';
+        const targetLayerId = layers.length > 0 ? layers[0].id : 'layer_default';
         
         createNode(
           comp.type, 
@@ -238,7 +247,7 @@ function setupSearch() {
   });
 
   searchInput.addEventListener('input', (e) => {
-    searchDropdown.classList.add('active'); // Re-enable active state on typing
+    searchDropdown.classList.add('active');
     renderResults(e.target.value);
   });
 
@@ -246,6 +255,7 @@ function setupSearch() {
     setTimeout(() => searchDropdown.classList.remove('active'), 200);
   });
 }
+
 // --- Backdrops ---
 function addBackdrop(title = 'System Zone', x = 200, y = 200, w = 300, h = 200, color = '#3a86ff') {
   const id = 'bd_' + Date.now();
@@ -404,7 +414,7 @@ function updateNodeSizeDOM(node) {
   }
 }
 
-// --- Connections with Hitboxes ---
+// --- Connections ---
 function createConnection(fromId, fromIdx, toId, toIdx) {
   if (connections.some(c => c.from === fromId && c.fromIdx === fromIdx && c.to === toId && c.toIdx === toIdx)) return;
   connections.push({ id: 'conn_' + Date.now(), from: fromId, fromIdx, to: toId, toIdx });
@@ -517,6 +527,8 @@ function renderInspector() {
   
   if (selectedNodeId) {
     const node = nodes.find(n => n.id === selectedNodeId);
+    if (!node) return;
+
     const layerOpts = layers.map(l => `<option value="${l.id}" ${l.id === node.layerId ? 'selected' : ''}>${l.name}</option>`).join('');
 
     container.innerHTML = `
@@ -564,6 +576,8 @@ function renderInspector() {
     `;
   } else if (selectedBackdropId) {
     const bd = backdrops.find(b => b.id === selectedBackdropId);
+    if (!bd) return;
+
     container.innerHTML = `
       <div class="field">
         <label>Group Backdrop Title</label>
@@ -599,14 +613,14 @@ function updateNodeProp(id, prop, val) {
 
   if (['inPorts', 'outPorts', 'color', 'w', 'h'].includes(prop)) {
     const el = document.getElementById(id);
-    el.remove();
+    el?.remove();
     renderNodeToDOM(node);
     selectNode(id);
     updateConnections();
   } else {
     const el = document.getElementById(id);
-    if (prop === 'label') el.querySelector('.lbl').innerText = val;
-    if (prop === 'ip') el.querySelector('.ip-tag').innerText = val;
+    if (prop === 'label' && el) el.querySelector('.lbl').innerText = val;
+    if (prop === 'ip' && el) el.querySelector('.ip-tag').innerText = val;
   }
 }
 
@@ -680,17 +694,14 @@ function deleteLayer(idToPort) {
     }
   }
 
-  // Remove the deleted layer from array
   layers = layers.filter(l => l.id !== idToPort);
 
-  // If no layers left, create a default fallback layer
   if (layers.length === 0) {
     layers.push({ id: 'layer_default', name: 'Main Layer', visible: true });
   }
 
   const targetLayerId = layers[0].id;
 
-  // Move all nodes from deleted layer to remaining default layer
   nodes.forEach(node => {
     if (node.layerId === idToPort) {
       node.layerId = targetLayerId;
@@ -700,6 +711,17 @@ function deleteLayer(idToPort) {
   renderLayers();
   refreshVisibility();
   if (selectedNodeId) renderInspector();
+}
+
+function refreshVisibility() {
+  nodes.forEach(node => {
+    const layer = layers.find(l => l.id === node.layerId);
+    const el = document.getElementById(node.id);
+    if (el) {
+      el.style.display = (layer && layer.visible) ? 'block' : 'none';
+    }
+  });
+  updateConnections();
 }
 
 // --- Deletions & Canvas Utilities ---
