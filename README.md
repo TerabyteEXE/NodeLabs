@@ -8,7 +8,7 @@
 
 ---
 
-## 📸 Overview
+## Overview
 
 **Node Labs** is an open-source, web-based visual mapping tool designed specifically for Audio/Visual (A/V) system mapping. It provides an intuitive canvas to model complex production studio setups, signals, and rack setups.
 
@@ -16,7 +16,7 @@ Whether you are mapping out a audio mixer setup, tracking IP-based video routing
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 * **Node-Based Cable Routing:** Connect devices with interactive bezier cable paths and visual signal flow direction(mostly for looks).
 * **Granular Detail & Metadata:** Assign custom labels, IP addresses or IDs, port numbers, and custom accent colors to each device.
@@ -29,7 +29,7 @@ Whether you are mapping out a audio mixer setup, tracking IP-based video routing
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 Structured for simplicity
 
