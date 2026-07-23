@@ -162,6 +162,8 @@ button.active {
   font-size: 0.82rem;
   color: var(--text-main);
   -webkit-user-select: none;
+  user-select: none;
+  transition: background-color 0.1s ease;
 }
 
 .search-item:hover {
@@ -194,7 +196,12 @@ button.active {
   background-size: 28px 28px;
   background-position: 0px 0px;
   -webkit-user-select: none;
+  user-select: none;
   touch-action: none;
+}
+
+#viewport.grabbing {
+  cursor: grabbing;
 }
 
 #canvas {
@@ -204,6 +211,7 @@ button.active {
   width: 100%;
   height: 100%;
   transform-origin: 0 0;
+  will-change: transform;
 }
 
 svg#svg-layer {
@@ -214,6 +222,7 @@ svg#svg-layer {
   top: 0;
   left: 0;
   z-index: 2;
+  will-change: contents;
 }
 
 /* Animated Flowing Cable Connectors */
@@ -263,6 +272,7 @@ svg path.drag-line {
   background: rgba(58, 134, 255, 0.05);
   border-radius: 8px;
   z-index: 1;
+  will-change: transform;
 }
 
 .backdrop-header {
@@ -271,6 +281,8 @@ svg path.drag-line {
   font-size: 0.85rem;
   cursor: move;
   -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
 }
 
 .backdrop-resize, .node-resize {
@@ -281,6 +293,7 @@ svg path.drag-line {
   right: 0;
   cursor: se-resize;
   -webkit-user-select: none;
+  user-select: none;
   touch-action: none;
 }
 
@@ -293,7 +306,10 @@ svg path.drag-line {
   box-shadow: 0 4px 12px rgba(0,0,0,0.25);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
   -webkit-user-select: none;
+  user-select: none;
   cursor: move;
+  touch-action: none;
+  will-change: transform;
 }
 
 .node.selected {
@@ -323,6 +339,7 @@ svg path.drag-line {
   cursor: move;
   border-bottom: 1px solid var(--border-color);
   -webkit-user-select: none;
+  user-select: none;
   touch-action: none;
 }
 
@@ -339,6 +356,7 @@ svg path.drag-line {
   font-size: 0.72rem;
   color: var(--text-muted);
   -webkit-user-select: none;
+  user-select: none;
 }
 
 .ip-tag {
@@ -367,6 +385,7 @@ svg path.drag-line {
   border: 2px solid var(--bg-panel);
   cursor: crosshair;
   -webkit-user-select: none;
+  user-select: none;
   transition: background-color 0.1s ease;
   touch-action: none;
 }

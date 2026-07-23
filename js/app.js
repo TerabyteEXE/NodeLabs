@@ -24,7 +24,22 @@ let snapToGrid = true;
 const GRID_SIZE = 28;
 
 let viewport, canvas, svgLayer, dragLine, searchInput, searchDropdown, layersListEl, projectNameInput;
-let lastTouchDistance = 0;
+
+// Performance optimization: RAF throttling for drag operations
+let rafId = null;
+let pendingDragUpdate = false;
+let lastDragNodePos = { x: 0, y: 0 };
+let lastPanPos = { x: 0, y: 0 };
+
+// Touch tracking with proper coordinate history
+let lastPointerPos = { x: 0, y: 0 };
+let touchStartDist = 0;
+
+// Cached DOM elements
+const domCache = {};
+
+// Gradient cache to avoid recreation
+const gradientCache = new Map();
 
 function init() {
   viewport = document.getElementById('viewport');
@@ -41,8 +56,7 @@ function init() {
 
   renderLayers();
   setupSearch();
-  setupViewportControls();
-  setupTouchControls();
+  setupPointerControls();
   
   addBackdrop('Audio Rack Group', 100, 100, 420, 260, '#9d4edd');
   
@@ -66,159 +80,73 @@ function toggleTheme() {
   document.getElementById('btn-theme').innerText = currentTheme === 'dark' ? '☀️ Light' : '🌙 Dark';
 }
 
-function setupTouchControls() {
-  // Touch support for pan and zoom
-  viewport.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 1) {
-      // Single touch - treat as pan or drag
-      const touch = e.touches[0];
-      const target = document.elementFromPoint(touch.clientX, touch.clientY);
-      
-      if (target?.closest('.node')) {
-        // Node dragging handled in node mousedown
-        return;
-      }
-      
-      if (target?.closest('.port')) {
-        // Port connection handled separately
-        return;
-      }
-      
-      // Pan with single touch
-      isPanning = true;
-    } else if (e.touches.length === 2) {
-      // Two-finger pinch to zoom
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      lastTouchDistance = Math.sqrt(dx * dx + dy * dy);
-    }
-  }, { passive: false });
-
-  viewport.addEventListener('touchmove', (e) => {
-    if (e.touches.length === 1 && isPanning) {
-      e.preventDefault();
-      const touch = e.touches[0];
-      const dx = touch.clientX - (touch.previousClientX || touch.clientX);
-      const dy = touch.clientY - (touch.previousClientY || touch.clientY);
-      panX += dx;
-      panY += dy;
-      applyTransform();
-    } else if (e.touches.length === 2) {
-      e.preventDefault();
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      
-      if (lastTouchDistance > 0) {
-        const delta = (distance - lastTouchDistance) * 0.01;
-        let newScale = Math.min(Math.max(0.25, scale + delta), 2.5);
-        
-        const rect = viewport.getBoundingClientRect();
-        const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
-        const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
-        
-        panX = centerX - (centerX - panX) * (newScale / scale);
-        panY = centerY - (centerY - panY) * (newScale / scale);
-        scale = newScale;
-        applyTransform();
-      }
-      lastTouchDistance = distance;
-    }
-  }, { passive: false });
-
-  viewport.addEventListener('touchend', () => {
-    isPanning = false;
-    lastTouchDistance = 0;
-  }, { passive: false });
-}
-
-function setupViewportControls() {
+// Unified PointerEvents API for mouse, trackpad, and touch
+function setupPointerControls() {
+  // Wheel zoom (mouse wheel + trackpad pinch zoom)
   viewport.addEventListener('wheel', (e) => {
     e.preventDefault();
     const delta = -e.deltaY * 0.001;
     let newScale = Math.min(Math.max(0.25, scale + delta), 2.5);
     const rect = viewport.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    const pointerX = e.clientX - rect.left;
+    const pointerY = e.clientY - rect.top;
     
-    panX = mouseX - (mouseX - panX) * (newScale / scale);
-    panY = mouseY - (mouseY - panY) * (newScale / scale);
+    panX = pointerX - (pointerX - panX) * (newScale / scale);
+    panY = pointerY - (pointerY - panY) * (newScale / scale);
     scale = newScale;
     applyTransform();
   }, { passive: false });
 
-  viewport.addEventListener('mousedown', (e) => {
-    // Support trackpad drag: left-click anywhere on viewport or middle-click
-    if (e.button === 1 || (e.button === 0 && e.target === viewport)) {
+  // Pointer down - unified mouse/touch/pen handling
+  viewport.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') {
+      // Touch: check if it's on a node/port
+      const target = e.target.closest('.node, .port, .backdrop, .backdrop-header, .node-header, .backdrop-resize, .node-resize');
+      if (target) {
+        return; // Let node/backdrop handlers take over
+      }
+      // Single touch pan
       isPanning = true;
-      viewport.style.cursor = 'grabbing';
-      deselectAll();
+      lastPointerPos = { x: e.clientX, y: e.clientY };
+    } else if (e.pointerType === 'mouse') {
+      // Mouse: left-click on viewport or middle-click for pan
+      if (e.button === 1 || (e.button === 0 && e.target === viewport)) {
+        isPanning = true;
+        viewport.style.cursor = 'grabbing';
+        deselectAll();
+        lastPointerPos = { x: e.clientX, y: e.clientY };
+      }
+    } else if (e.pointerType === 'pen') {
+      // Pen: treat like touch
+      const target = e.target.closest('.node, .port, .backdrop');
+      if (!target) {
+        isPanning = true;
+        lastPointerPos = { x: e.clientX, y: e.clientY };
+      }
     }
   });
 
-  window.addEventListener('mousemove', (e) => {
-    if (isPanning) {
-      panX += e.movementX;
-      panY += e.movementY;
-      applyTransform();
+  // Pointer move - throttled with RAF
+  viewport.addEventListener('pointermove', (e) => {
+    if (!rafId) {
+      rafId = requestAnimationFrame(() => {
+        handlePointerMove(e);
+        rafId = null;
+      });
+    }
+  });
+
+  // Pointer up
+  viewport.addEventListener('pointerup', () => {
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
     }
     
-    if (dragNodeId) {
-      const node = nodes.find(n => n.id === dragNodeId);
-      if (node) {
-        node.x += e.movementX / scale;
-        node.y += e.movementY / scale;
-        updateNodePositionDOM(node);
-        updateConnections();
-      }
-    }
-
-    if (resizingNode) {
-      const node = nodes.find(n => n.id === resizingNode);
-      if (node) {
-        node.w = Math.max(160, node.w + e.movementX / scale);
-        node.h = Math.max(100, node.h + e.movementY / scale);
-        updateNodeSizeDOM(node);
-        updateConnections();
-      }
-    }
-
-    if (dragBackdrop) {
-      const bd = backdrops.find(b => b.id === dragBackdrop.id);
-      if (bd) {
-        bd.x += e.movementX / scale;
-        bd.y += e.movementY / scale;
-        updateBackdropDOM(bd);
-      }
-    }
-
-    if (resizingBackdrop) {
-      const bd = backdrops.find(b => b.id === resizingBackdrop);
-      if (bd) {
-        bd.w = Math.max(150, bd.w + e.movementX / scale);
-        bd.h = Math.max(100, bd.h + e.movementY / scale);
-        updateBackdropDOM(bd);
-      }
-    }
-
-    if (connectingPort) {
-      const rect = viewport.getBoundingClientRect();
-      const mouseX = (e.clientX - rect.left - panX) / scale;
-      const mouseY = (e.clientY - rect.top - panY) / scale;
-      
-      const dx = Math.abs(mouseX - connectingPort.x) * 0.5;
-      const pathD = connectingPort.type === 'output' 
-        ? `M ${connectingPort.x} ${connectingPort.y} C ${connectingPort.x + dx} ${connectingPort.y}, ${mouseX - dx} ${mouseY}, ${mouseX} ${mouseY}`
-        : `M ${mouseX} ${mouseY} C ${mouseX + dx} ${mouseY}, ${connectingPort.x - dx} ${connectingPort.y}, ${connectingPort.x} ${connectingPort.y}`;
-      
-      dragLine.setAttribute('d', pathD);
-    }
-  });
-
-  window.addEventListener('mouseup', (e) => {
     isPanning = false;
     viewport.style.cursor = 'grab';
     
+    // Snap to grid on drag end
     if (dragNodeId && snapToGrid) {
       const node = nodes.find(n => n.id === dragNodeId);
       if (node) {
@@ -232,21 +160,109 @@ function setupViewportControls() {
     dragBackdrop = null;
     resizingBackdrop = null;
     resizingNode = null;
-
-    if (connectingPort) {
-      const targetPort = e.target.closest('.port');
-      if (targetPort && targetPort.dataset.node !== connectingPort.nodeId && targetPort.dataset.port !== connectingPort.type) {
-        const fromId = connectingPort.type === 'output' ? connectingPort.nodeId : targetPort.dataset.node;
-        const fromIdx = parseInt(connectingPort.type === 'output' ? connectingPort.index : targetPort.dataset.index);
-        const toId = connectingPort.type === 'output' ? targetPort.dataset.node : connectingPort.nodeId;
-        const toIdx = parseInt(connectingPort.type === 'output' ? targetPort.dataset.index : connectingPort.index);
-        
-        createConnection(fromId, fromIdx, toId, toIdx);
-      }
-      connectingPort = null;
-      dragLine.style.display = 'none';
-    }
   });
+
+  // Touch-specific: two-finger pinch zoom
+  viewport.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      touchStartDist = Math.sqrt(dx * dx + dy * dy);
+    }
+  }, { passive: true });
+
+  viewport.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2 && touchStartDist > 0) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      const delta = (distance - touchStartDist) * 0.005;
+      let newScale = Math.min(Math.max(0.25, scale + delta), 2.5);
+      
+      const rect = viewport.getBoundingClientRect();
+      const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+      const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+      
+      panX = centerX - (centerX - panX) * (newScale / scale);
+      panY = centerY - (centerY - panY) * (newScale / scale);
+      scale = newScale;
+      applyTransform();
+      touchStartDist = distance;
+    }
+  }, { passive: false });
+
+  viewport.addEventListener('touchend', () => {
+    touchStartDist = 0;
+  }, { passive: true });
+}
+
+// Optimized pointer move handler
+function handlePointerMove(e) {
+  const rect = viewport.getBoundingClientRect();
+  const currentX = e.clientX;
+  const currentY = e.clientY;
+  const dx = currentX - lastPointerPos.x;
+  const dy = currentY - lastPointerPos.y;
+  
+  lastPointerPos = { x: currentX, y: currentY };
+
+  if (isPanning) {
+    panX += dx;
+    panY += dy;
+    applyTransform();
+  }
+  
+  if (dragNodeId) {
+    const node = nodes.find(n => n.id === dragNodeId);
+    if (node) {
+      node.x += dx / scale;
+      node.y += dy / scale;
+      updateNodePositionDOM(node);
+      updateConnections();
+    }
+  }
+
+  if (resizingNode) {
+    const node = nodes.find(n => n.id === resizingNode);
+    if (node) {
+      node.w = Math.max(160, node.w + dx / scale);
+      node.h = Math.max(100, node.h + dy / scale);
+      updateNodeSizeDOM(node);
+      updateConnections();
+    }
+  }
+
+  if (dragBackdrop) {
+    const bd = backdrops.find(b => b.id === dragBackdrop.id);
+    if (bd) {
+      bd.x += dx / scale;
+      bd.y += dy / scale;
+      updateBackdropDOM(bd);
+    }
+  }
+
+  if (resizingBackdrop) {
+    const bd = backdrops.find(b => b.id === resizingBackdrop);
+    if (bd) {
+      bd.w = Math.max(150, bd.w + dx / scale);
+      bd.h = Math.max(100, bd.h + dy / scale);
+      updateBackdropDOM(bd);
+    }
+  }
+
+  if (connectingPort) {
+    const mouseX = (currentX - rect.left - panX) / scale;
+    const mouseY = (currentY - rect.top - panY) / scale;
+    
+    const dx = Math.abs(mouseX - connectingPort.x) * 0.5;
+    const pathD = connectingPort.type === 'output' 
+      ? `M ${connectingPort.x} ${connectingPort.y} C ${connectingPort.x + dx} ${connectingPort.y}, ${mouseX - dx} ${mouseY}, ${mouseX} ${mouseY}`
+      : `M ${mouseX} ${mouseY} C ${mouseX + dx} ${mouseY}, ${connectingPort.x - dx} ${connectingPort.y}, ${connectingPort.x} ${connectingPort.y}`;
+    
+    dragLine.setAttribute('d', pathD);
+  }
 }
 
 function applyTransform() {
@@ -268,7 +284,9 @@ function deselectAll() {
   renderInspector();
 }
 
-// --- Search System ---
+// --- Search System (Optimized with Debouncing) ---
+let searchDebounceTimer = null;
+
 function setupSearch() {
   const renderResults = (query) => {
     searchDropdown.innerHTML = '';
@@ -282,12 +300,14 @@ function setupSearch() {
       return;
     }
     
+    // Use DocumentFragment for efficient batch DOM insertion
+    const fragment = document.createDocumentFragment();
     filtered.forEach(comp => {
       const div = document.createElement('div');
       div.className = 'search-item';
       div.innerHTML = `<div class="color-dot" style="background:${comp.color || '#00e5ff'}"></div> ${comp.type}`;
       
-      div.onmousedown = (e) => {
+      div.addEventListener('mousedown', (e) => {
         e.preventDefault();
         
         const viewCenterX = (-panX + viewport.clientWidth / 2) / scale;
@@ -307,10 +327,11 @@ function setupSearch() {
         
         searchInput.value = '';
         searchDropdown.classList.remove('active');
-      };
+      });
 
-      searchDropdown.appendChild(div);
+      fragment.appendChild(div);
     });
+    searchDropdown.appendChild(fragment);
   };
 
   searchInput.addEventListener('focus', () => { 
@@ -318,9 +339,13 @@ function setupSearch() {
     renderResults(searchInput.value); 
   });
 
+  // Debounced input handling
   searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchDebounceTimer);
     searchDropdown.classList.add('active');
-    renderResults(e.target.value);
+    searchDebounceTimer = setTimeout(() => {
+      renderResults(e.target.value);
+    }, 150);
   });
 
   searchInput.addEventListener('blur', () => {
@@ -349,14 +374,14 @@ function renderBackdropToDOM(bd) {
   `;
 
   const header = el.querySelector('.backdrop-header');
-  header.addEventListener('mousedown', (e) => {
+  header.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     dragBackdrop = { id: bd.id };
     selectBackdrop(bd.id);
   });
 
   const resizer = el.querySelector('.backdrop-resize');
-  resizer.addEventListener('mousedown', (e) => {
+  resizer.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     resizingBackdrop = bd.id;
   });
@@ -433,22 +458,25 @@ function renderNodeToDOM(node) {
     <div class="node-resize"></div>
   `;
 
-  el.querySelector('.node-header').addEventListener('mousedown', (e) => {
+  const header = el.querySelector('.node-header');
+  header.addEventListener('pointerdown', (e) => {
     dragNodeId = node.id;
     selectNode(node.id);
     e.stopPropagation();
   });
 
-  el.querySelector('.node-resize').addEventListener('mousedown', (e) => {
+  const resizer = el.querySelector('.node-resize');
+  resizer.addEventListener('pointerdown', (e) => {
     resizingNode = node.id;
     selectNode(node.id);
     e.stopPropagation();
   });
 
-  el.addEventListener('mousedown', () => selectNode(node.id));
+  el.addEventListener('pointerdown', () => selectNode(node.id));
 
+  // Cache port elements for better performance
   el.querySelectorAll('.port').forEach(port => {
-    port.addEventListener('mousedown', (e) => {
+    port.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       const rect = port.getBoundingClientRect();
       const viewRect = canvas.getBoundingClientRect();
@@ -486,7 +514,7 @@ function updateNodeSizeDOM(node) {
   }
 }
 
-// --- Connections ---
+// --- Connections (Optimized) ---
 function createConnection(fromId, fromIdx, toId, toIdx) {
   if (connections.some(c => c.from === fromId && c.fromIdx === fromIdx && c.to === toId && c.toIdx === toIdx)) return;
   connections.push({ id: 'conn_' + Date.now(), from: fromId, fromIdx, to: toId, toIdx });
@@ -494,6 +522,7 @@ function createConnection(fromId, fromIdx, toId, toIdx) {
 }
 
 function updateConnections() {
+  // Remove old connector groups
   svgLayer.querySelectorAll('g.connector-group').forEach(el => el.remove());
 
   let defs = svgLayer.querySelector('defs');
@@ -504,13 +533,15 @@ function updateConnections() {
     defs.innerHTML = ''; 
   }
 
+  // Get visible layers once to avoid repeated lookups
+  const visibleLayerIds = new Set(layers.filter(l => l.visible).map(l => l.id));
+
   connections.forEach(conn => {
     const fromNode = nodes.find(n => n.id === conn.from);
     const toNode = nodes.find(n => n.id === conn.to);
     
-    const fromLayer = layers.find(l => l.id === fromNode?.layerId);
-    const toLayer = layers.find(l => l.id === toNode?.layerId);
-    if ((fromLayer && !fromLayer.visible) || (toLayer && !toLayer.visible)) return;
+    // Early exit for hidden layers
+    if (!visibleLayerIds.has(fromNode?.layerId) || !visibleLayerIds.has(toNode?.layerId)) return;
 
     const fromEl = document.querySelector(`#${conn.from} .port.output[data-index="${conn.fromIdx}"]`);
     const toEl = document.querySelector(`#${conn.to} .port.input[data-index="${conn.toIdx}"]`);
@@ -526,24 +557,32 @@ function updateConnections() {
       const y2 = (rB.top - viewRect.top + rB.height / 2) / scale;
 
       const gradId = `grad_${conn.id}`;
-      const grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
-      grad.setAttribute('id', gradId);
-      grad.setAttribute('gradientUnits', 'userSpaceOnUse');
+      
+      // Reuse cached gradient if available
+      let grad = gradientCache.get(gradId);
+      if (!grad) {
+        grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+        grad.setAttribute('id', gradId);
+        grad.setAttribute('gradientUnits', 'userSpaceOnUse');
+        
+        const stopStart = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+        stopStart.setAttribute('offset', '0%');
+        stopStart.setAttribute('stop-color', '#3a86ff');
+        
+        const stopEnd = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+        stopEnd.setAttribute('offset', '100%');
+        stopEnd.setAttribute('stop-color', '#9d4edd');
+        
+        grad.appendChild(stopStart);
+        grad.appendChild(stopEnd);
+        gradientCache.set(gradId, grad);
+      }
+      
+      // Update gradient coordinates
       grad.setAttribute('x1', x1);
       grad.setAttribute('y1', y1);
       grad.setAttribute('x2', x2);
       grad.setAttribute('y2', y2);
-
-      const stopStart = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-      stopStart.setAttribute('offset', '0%');
-      stopStart.setAttribute('stop-color', '#3a86ff'); 
-
-      const stopEnd = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-      stopEnd.setAttribute('offset', '100%');
-      stopEnd.setAttribute('stop-color', '#9d4edd'); 
-
-      grad.appendChild(stopStart);
-      grad.appendChild(stopEnd);
       defs.appendChild(grad);
 
       const dx = Math.abs(x2 - x1) * 0.5;
@@ -567,7 +606,10 @@ function updateConnections() {
       group.appendChild(hitbox);
       group.appendChild(path);
       
-      group.onmousedown = (e) => { e.stopPropagation(); selectConnection(conn.id); };
+      group.addEventListener('pointerdown', (e) => { 
+        e.stopPropagation(); 
+        selectConnection(conn.id); 
+      });
       svgLayer.appendChild(group);
     }
   });
@@ -691,7 +733,6 @@ function updateNodeProp(id, prop, val) {
   node[prop] = val;
 
   if (prop === 'inPorts' || prop === 'outPorts') {
-    // Scale height based on port count - grow OR shrink
     const requiredH = Math.max(110, Math.max(node.inPorts, node.outPorts) * 28 + 50);
     node.h = requiredH;
   }
@@ -813,14 +854,20 @@ function refreshVisibility() {
 function deleteNode(id) {
   nodes = nodes.filter(n => n.id !== id);
   connections = connections.filter(c => c.from !== id && c.to !== id);
-  document.getElementById(id)?.remove();
+  const el = document.getElementById(id);
+  if (el) {
+    el.remove();
+  }
   deselectAll();
   updateConnections();
 }
 
 function deleteBackdrop(id) {
   backdrops = backdrops.filter(b => b.id !== id);
-  document.getElementById(id)?.remove();
+  const el = document.getElementById(id);
+  if (el) {
+    el.remove();
+  }
   deselectAll();
 }
 
@@ -836,8 +883,6 @@ function clearCanvas() {
     document.querySelectorAll('.node, .backdrop').forEach(el => el.remove());
     deselectAll();
     updateConnections();
-    
-    // Maintain grid dot rendering on clean canvas
     applyTransform();
   }
 }
