@@ -1,3 +1,4 @@
+  // Feel free to add or remove anything you wish here
 window.componentLibrary = [
   // --- Audio ---
   { type: 'Audio Mixer', color: '#9d4edd', inPorts: 8, outPorts: 8 },
