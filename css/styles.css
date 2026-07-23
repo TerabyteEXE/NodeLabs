@@ -1,25 +1,69 @@
-/* Sidebar Panel Layout & Smooth Auto-Hide Animation */
-aside {
-  width: 300px;
+/* Enable high-quality subpixel rendering & hardware acceleration */
+#viewport {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 56px);
+  overflow: hidden;
+  background-color: var(--bg-main);
+  background-image: radial-gradient(var(--grid-dot) 1.5px, transparent 1.5px);
+  background-size: 28px 28px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+
+  /* Sharpness & Anti-Aliasing Optimizations */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+#canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 0;
+  will-change: transform; /* Promotes canvas to a dedicated GPU compositor layer */
+}
+
+/* Force SVG vectors to maintain crisp paths when zoomed */
+#svg-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10,000px; /* Expands vector bounds */
+  height: 10,000px;
+  pointer-events: none;
+  z-index: 2;
+  overflow: visible;
+  shape-rendering: geometricPrecision; /* Prevents vector blur on lines */
+}
+
+.connector-path, .connector-bg, .drag-line {
+  vector-effect: non-scaling-stroke; /* Keeps stroke width crisp regardless of zoom scale */
+}
+
+/* Sharp Node & Text Rendering */
+.node {
+  position: absolute;
   background-color: var(--bg-panel);
-  border-left: 1px solid var(--border-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 10;
   display: flex;
   flex-direction: column;
-  padding: 16px;
-  gap: 20px;
-  z-index: 100;
-  transition: transform 0.25s ease, margin-right 0.25s ease;
+  box-sizing: border-box;
+  
+  /* GPU rendering hint */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
-aside.hidden {
-  transform: translateX(100%);
-  margin-right: -300px; /* Slides off-screen and reclaims viewport space */
-}
-
-.sidebar-section h3 {
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-  margin-bottom: 12px;
+.node-title-group .lbl,
+.node-body,
+.port {
+  /* Crisp text and border rendering */
+  transform: translateZ(0); 
 }
