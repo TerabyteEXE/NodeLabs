@@ -21,25 +21,15 @@ let currentTheme = 'dark';
 let scale = 1, panX = 0, panY = 0;
 let isPanning = false;
 let snapToGrid = true;
+let alwaysShowSidebar = false;
 const GRID_SIZE = 28;
 
-let viewport, canvas, svgLayer, dragLine, searchInput, searchDropdown, layersListEl, projectNameInput;
+let viewport, canvas, svgLayer, dragLine, searchInput, searchDropdown, layersListEl, projectNameInput, sidebarPanel;
 
 // Performance optimization: RAF throttling for drag operations
 let rafId = null;
-let pendingDragUpdate = false;
-let lastDragNodePos = { x: 0, y: 0 };
-let lastPanPos = { x: 0, y: 0 };
-
-// Touch tracking with proper coordinate history
 let lastPointerPos = { x: 0, y: 0 };
 let touchStartDist = 0;
-
-// Cached DOM elements
-const domCache = {};
-
-// Gradient cache to avoid recreation
-const gradientCache = new Map();
 
 function init() {
   viewport = document.getElementById('viewport');
@@ -50,14 +40,15 @@ function init() {
   searchDropdown = document.getElementById('search-dropdown');
   layersListEl = document.getElementById('layers-list');
   projectNameInput = document.getElementById('project-name');
+  sidebarPanel = document.getElementById('sidebar-panel');
 
-  // Load saved theme
+  // Load saved settings
   const savedTheme = localStorage.getItem('nodelab-theme') || 'dark';
   setTheme(savedTheme);
 
-  // Immediately render background dots and scale positioning on startup
-  applyTransform();
+  alwaysShowSidebar = localStorage.getItem('nodelab-always-sidebar') === 'true';
 
+  applyTransform();
   renderLayers();
   setupSearch();
   setupPointerControls();
@@ -75,15 +66,16 @@ function init() {
   requestAnimationFrame(() => {
     updateConnections();
   });
+
+  updateSidebarVisibility();
 }
 
-// --- Theme & Settings ---
+// --- Theme & Settings Management ---
 function setTheme(themeName) {
   currentTheme = themeName;
   document.documentElement.setAttribute('data-theme', themeName);
   localStorage.setItem('nodelab-theme', themeName);
   
-  // Update active theme button
   document.querySelectorAll('.theme-btn').forEach(btn => {
     btn.classList.remove('active');
     if (btn.dataset.theme === themeName) {
@@ -96,8 +88,9 @@ function openSettings() {
   const modal = document.getElementById('settings-modal');
   modal.classList.add('active');
   
-  // Update grid checkbox
+  // Keep settings modal elements in sync
   document.getElementById('setting-grid').checked = snapToGrid;
+  document.getElementById('setting-sidebar').checked = alwaysShowSidebar;
 }
 
 function closeSettings() {
@@ -107,19 +100,49 @@ function closeSettings() {
 
 function updateGridSetting() {
   snapToGrid = document.getElementById('setting-grid').checked;
+  syncGridUI();
 }
 
-// Close modal when clicking outside
+function toggleGrid() {
+  snapToGrid = !snapToGrid;
+  syncGridUI();
+}
+
+function syncGridUI() {
+  const gridBtn = document.getElementById('btn-grid');
+  if (gridBtn) {
+    if (snapToGrid) gridBtn.classList.add('active');
+    else gridBtn.classList.remove('active');
+  }
+  const gridCheckbox = document.getElementById('setting-grid');
+  if (gridCheckbox) gridCheckbox.checked = snapToGrid;
+}
+
+function updateSidebarSetting() {
+  alwaysShowSidebar = document.getElementById('setting-sidebar').checked;
+  localStorage.setItem('nodelab-always-sidebar', alwaysShowSidebar);
+  updateSidebarVisibility();
+}
+
+function updateSidebarVisibility() {
+  if (!sidebarPanel) return;
+  const hasSelection = selectedNodeId !== null || selectedBackdropId !== null || selectedConnId !== null;
+  
+  if (alwaysShowSidebar || hasSelection) {
+    sidebarPanel.classList.remove('hidden');
+  } else {
+    sidebarPanel.classList.add('hidden');
+  }
+}
+
+// Close settings modal on backdrop click
 window.addEventListener('click', (e) => {
   const modal = document.getElementById('settings-modal');
-  if (e.target === modal) {
-    closeSettings();
-  }
+  if (e.target === modal) closeSettings();
 });
 
-// --- Unified PointerEvents API for mouse, trackpad, and touch ---
+// --- Unified Pointer Control & Connection Drag Fix ---
 function setupPointerControls() {
-  // Wheel zoom (mouse wheel + trackpad pinch zoom)
   viewport.addEventListener('wheel', (e) => {
     e.preventDefault();
     const delta = -e.deltaY * 0.001;
@@ -134,40 +157,26 @@ function setupPointerControls() {
     applyTransform();
   }, { passive: false });
 
-  // Pointer down - unified mouse/touch/pen handling
   viewport.addEventListener('pointerdown', (e) => {
-    // Check if clicking on canvas itself (not on elements)
     if (e.target !== viewport && e.target !== canvas && !e.target.closest('.node, .port, .backdrop, .backdrop-header, .node-header, .backdrop-resize, .node-resize')) {
       return;
     }
     
-    if (e.pointerType === 'touch') {
-      const target = e.target.closest('.node, .port, .backdrop, .backdrop-header, .node-header, .backdrop-resize, .node-resize');
-      if (target) {
-        return; // Let node/backdrop handlers take over
-      }
-      // Single touch pan
+    if (e.pointerType === 'mouse' && (e.button === 1 || (e.button === 0 && (e.target === viewport || e.target === canvas)))) {
       isPanning = true;
+      viewport.style.cursor = 'grabbing';
+      deselectAll();
       lastPointerPos = { x: e.clientX, y: e.clientY };
-    } else if (e.pointerType === 'mouse') {
-      // Mouse: left-click on viewport or middle-click for pan
-      if (e.button === 1 || (e.button === 0 && (e.target === viewport || e.target === canvas))) {
-        isPanning = true;
-        viewport.style.cursor = 'grabbing';
-        deselectAll();
-        lastPointerPos = { x: e.clientX, y: e.clientY };
-      }
-    } else if (e.pointerType === 'pen') {
-      // Pen: treat like touch
-      const target = e.target.closest('.node, .port, .backdrop');
+    } else if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+      const target = e.target.closest('.node, .port, .backdrop, .backdrop-header, .node-header, .backdrop-resize, .node-resize');
       if (!target) {
         isPanning = true;
+        deselectAll();
         lastPointerPos = { x: e.clientX, y: e.clientY };
       }
     }
   });
 
-  // Pointer move - throttled with RAF
   viewport.addEventListener('pointermove', (e) => {
     if (!rafId) {
       rafId = requestAnimationFrame(() => {
@@ -177,8 +186,8 @@ function setupPointerControls() {
     }
   });
 
-  // Pointer up
-  viewport.addEventListener('pointerup', () => {
+  // Release handler: clears drag line or connects if released over a valid target port
+  viewport.addEventListener('pointerup', (e) => {
     if (rafId) {
       cancelAnimationFrame(rafId);
       rafId = null;
@@ -187,7 +196,29 @@ function setupPointerControls() {
     isPanning = false;
     viewport.style.cursor = 'grab';
     
-    // Snap to grid on drag end
+    // Connection drop fix
+    if (connectingPort) {
+      const targetPortEl = document.elementFromPoint(e.clientX, e.clientY)?.closest('.port');
+      if (targetPortEl) {
+        const targetNodeId = targetPortEl.dataset.node;
+        const targetType = targetPortEl.dataset.port;
+        const targetIndex = parseInt(targetPortEl.dataset.index);
+
+        if (targetNodeId && targetNodeId !== connectingPort.nodeId && targetType !== connectingPort.type) {
+          if (connectingPort.type === 'output' && targetType === 'input') {
+            createConnection(connectingPort.nodeId, connectingPort.index, targetNodeId, targetIndex);
+          } else if (connectingPort.type === 'input' && targetType === 'output') {
+            createConnection(targetNodeId, targetIndex, connectingPort.nodeId, connectingPort.index);
+          }
+        }
+      }
+      
+      // Reset connection line state on release
+      connectingPort = null;
+      dragLine.style.display = 'none';
+      dragLine.setAttribute('d', '');
+    }
+
     if (dragNodeId && snapToGrid) {
       const node = nodes.find(n => n.id === dragNodeId);
       if (node) {
@@ -197,13 +228,13 @@ function setupPointerControls() {
         updateConnections();
       }
     }
+
     dragNodeId = null;
     dragBackdrop = null;
     resizingBackdrop = null;
     resizingNode = null;
   });
 
-  // Touch-specific: two-finger pinch zoom
   viewport.addEventListener('touchstart', (e) => {
     if (e.touches.length === 2) {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -234,12 +265,9 @@ function setupPointerControls() {
     }
   }, { passive: false });
 
-  viewport.addEventListener('touchend', () => {
-    touchStartDist = 0;
-  }, { passive: true });
+  viewport.addEventListener('touchend', () => { touchStartDist = 0; }, { passive: true });
 }
 
-// Optimized pointer move handler
 function handlePointerMove(e) {
   const rect = viewport.getBoundingClientRect();
   const currentX = e.clientX;
@@ -297,10 +325,10 @@ function handlePointerMove(e) {
     const mouseX = (currentX - rect.left - panX) / scale;
     const mouseY = (currentY - rect.top - panY) / scale;
     
-    const dx = Math.abs(mouseX - connectingPort.x) * 0.5;
+    const cDx = Math.abs(mouseX - connectingPort.x) * 0.5;
     const pathD = connectingPort.type === 'output' 
-      ? `M ${connectingPort.x} ${connectingPort.y} C ${connectingPort.x + dx} ${connectingPort.y}, ${mouseX - dx} ${mouseY}, ${mouseX} ${mouseY}`
-      : `M ${mouseX} ${mouseY} C ${mouseX + dx} ${mouseY}, ${connectingPort.x - dx} ${connectingPort.y}, ${connectingPort.x} ${connectingPort.y}`;
+      ? `M ${connectingPort.x} ${connectingPort.y} C ${connectingPort.x + cDx} ${connectingPort.y}, ${mouseX - cDx} ${mouseY}, ${mouseX} ${mouseY}`
+      : `M ${mouseX} ${mouseY} C ${mouseX + cDx} ${mouseY}, ${connectingPort.x - cDx} ${connectingPort.y}, ${connectingPort.x} ${connectingPort.y}`;
     
     dragLine.setAttribute('d', pathD);
   }
@@ -308,7 +336,6 @@ function handlePointerMove(e) {
 
 function applyTransform() {
   canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-  // Scale grid dots with zoom level
   const scaledGridSize = GRID_SIZE * scale;
   viewport.style.backgroundSize = `${scaledGridSize}px ${scaledGridSize}px`;
   viewport.style.backgroundPosition = `${panX}px ${panY}px`;
@@ -323,17 +350,17 @@ function deselectAll() {
   selectedNodeId = null;
   selectedBackdropId = null;
   selectedConnId = null;
-  document.querySelectorAll('.node, .connector-group').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll('.node, .backdrop, .connector-group').forEach(el => el.classList.remove('selected'));
   renderInspector();
+  updateSidebarVisibility();
 }
 
-// --- Search System (Optimized with Debouncing) ---
+// --- Search System ---
 let searchDebounceTimer = null;
 
 function setupSearch() {
   const renderResults = (query) => {
     searchDropdown.innerHTML = '';
-    
     const library = (typeof componentLibrary !== 'undefined' ? componentLibrary : window.componentLibrary) || [];
     const searchQuery = (query || '').toLowerCase().trim();
     const filtered = library.filter(c => c.type && c.type.toLowerCase().includes(searchQuery));
@@ -343,7 +370,6 @@ function setupSearch() {
       return;
     }
     
-    // Use DocumentFragment for efficient batch DOM insertion
     const fragment = document.createDocumentFragment();
     filtered.forEach(comp => {
       const div = document.createElement('div');
@@ -352,22 +378,11 @@ function setupSearch() {
       
       div.addEventListener('mousedown', (e) => {
         e.preventDefault();
-        
         const viewCenterX = (-panX + viewport.clientWidth / 2) / scale;
         const viewCenterY = (-panY + viewport.clientHeight / 2) / scale;
+        const targetLayerId = layers.length > 0 ? layers[0].id : 'layer_0';
         
-        const targetLayerId = layers.length > 0 ? layers[0].id : 'layer_default';
-        
-        createNode(
-          comp.type, 
-          targetLayerId, 
-          viewCenterX - 100, 
-          viewCenterY - 40, 
-          comp.color, 
-          comp.inPorts !== undefined ? comp.inPorts : 1, 
-          comp.outPorts !== undefined ? comp.outPorts : 1
-        );
-        
+        createNode(comp.type, targetLayerId, viewCenterX - 100, viewCenterY - 40, comp.color, comp.inPorts || 1, comp.outPorts || 1);
         searchInput.value = '';
         searchDropdown.classList.remove('active');
       });
@@ -382,13 +397,10 @@ function setupSearch() {
     renderResults(searchInput.value); 
   });
 
-  // Debounced input handling
   searchInput.addEventListener('input', (e) => {
     clearTimeout(searchDebounceTimer);
     searchDropdown.classList.add('active');
-    searchDebounceTimer = setTimeout(() => {
-      renderResults(e.target.value);
-    }, 150);
+    searchDebounceTimer = setTimeout(() => renderResults(e.target.value), 150);
   });
 
   searchInput.addEventListener('blur', () => {
@@ -410,21 +422,17 @@ function renderBackdropToDOM(bd) {
   el.className = 'backdrop';
   el.id = bd.id;
   el.innerHTML = `
-    <div class="backdrop-header">
-      <span class="bd-title">${bd.title}</span>
-    </div>
+    <div class="backdrop-header"><span class="bd-title">${bd.title}</span></div>
     <div class="backdrop-resize"></div>
   `;
 
-  const header = el.querySelector('.backdrop-header');
-  header.addEventListener('pointerdown', (e) => {
+  el.querySelector('.backdrop-header').addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     dragBackdrop = { id: bd.id };
     selectBackdrop(bd.id);
   });
 
-  const resizer = el.querySelector('.backdrop-resize');
-  resizer.addEventListener('pointerdown', (e) => {
+  el.querySelector('.backdrop-resize').addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     resizingBackdrop = bd.id;
   });
@@ -445,7 +453,7 @@ function updateBackdropDOM(bd) {
   }
 }
 
-// --- Nodes Management ---
+// --- Nodes Management & Dynamic Height Resizing ---
 function createNode(type, layerId, x, y, color, inPorts = 1, outPorts = 1) {
   const autoH = Math.max(110, Math.max(inPorts, outPorts) * 28 + 50);
   createNodeWithId('node_' + Date.now(), type, layerId, x, y, color, inPorts, outPorts, 220, autoH);
@@ -462,18 +470,25 @@ function createNodeWithId(id, type, layerId, x, y, color, inPorts = 1, outPorts 
     inPorts: inPorts !== undefined ? parseInt(inPorts) : 1, 
     outPorts: outPorts !== undefined ? parseInt(outPorts) : 1,
     starred: false, highlighted: false,
-    ip: '192.168.1.' + Math.floor(Math.random()*200 + 10) 
+    scaleLocked: false, // Lock size flag (off by default)
+    ip: '192.168.1.' + Math.floor(Math.random() * 200 + 10)
   };
+
   nodes.push(node);
   renderNodeToDOM(node);
   selectNode(id);
 }
 
 function renderNodeToDOM(node) {
-  const el = document.createElement('div');
-  el.className = `node ${node.starred ? 'starred' : ''} ${node.highlighted ? 'highlighted' : ''}`;
-  el.id = node.id;
-  
+  let el = document.getElementById(node.id);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = node.id;
+    canvas.appendChild(el);
+  }
+
+  el.className = `node ${node.starred ? 'starred' : ''} ${node.highlighted ? 'highlighted' : ''} ${selectedNodeId === node.id ? 'selected' : ''}`;
+
   let inPortsHTML = '';
   for (let i = 0; i < node.inPorts; i++) {
     inPortsHTML += `<div class="port input" data-node="${node.id}" data-port="input" data-index="${i}" title="Input ${i+1}"></div>`;
@@ -501,15 +516,13 @@ function renderNodeToDOM(node) {
     <div class="node-resize"></div>
   `;
 
-  const header = el.querySelector('.node-header');
-  header.addEventListener('pointerdown', (e) => {
+  el.querySelector('.node-header').addEventListener('pointerdown', (e) => {
     dragNodeId = node.id;
     selectNode(node.id);
     e.stopPropagation();
   });
 
-  const resizer = el.querySelector('.node-resize');
-  resizer.addEventListener('pointerdown', (e) => {
+  el.querySelector('.node-resize').addEventListener('pointerdown', (e) => {
     resizingNode = node.id;
     selectNode(node.id);
     e.stopPropagation();
@@ -517,13 +530,11 @@ function renderNodeToDOM(node) {
 
   el.addEventListener('pointerdown', () => selectNode(node.id));
 
-  // Cache port elements for better performance
   el.querySelectorAll('.port').forEach(port => {
     port.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       const rect = port.getBoundingClientRect();
       const viewRect = canvas.getBoundingClientRect();
-      
       connectingPort = {
         nodeId: node.id,
         type: port.dataset.port,
@@ -535,10 +546,8 @@ function renderNodeToDOM(node) {
     });
   });
 
-  canvas.appendChild(el);
   updateNodePositionDOM(node);
   updateNodeSizeDOM(node);
-  refreshVisibility();
 }
 
 function updateNodePositionDOM(node) {
@@ -557,140 +566,116 @@ function updateNodeSizeDOM(node) {
   }
 }
 
-// --- Connections (Optimized) ---
-function createConnection(fromId, fromIdx, toId, toIdx) {
-  if (connections.some(c => c.from === fromId && c.fromIdx === fromIdx && c.to === toId && c.toIdx === toIdx)) return;
-  connections.push({ id: 'conn_' + Date.now(), from: fromId, fromIdx, to: toId, toIdx });
-  updateConnections();
-}
-
-function updateConnections() {
-  // Remove old connector groups
-  svgLayer.querySelectorAll('g.connector-group').forEach(el => el.remove());
-
-  let defs = svgLayer.querySelector('defs');
-  if (!defs) {
-    defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    svgLayer.prepend(defs);
-  } else {
-    defs.innerHTML = ''; 
-  }
-
-  // Get visible layers once to avoid repeated lookups
-  const visibleLayerIds = new Set(layers.filter(l => l.visible).map(l => l.id));
-
-  connections.forEach(conn => {
-    const fromNode = nodes.find(n => n.id === conn.from);
-    const toNode = nodes.find(n => n.id === conn.to);
-    
-    // Early exit for hidden layers
-    if (!visibleLayerIds.has(fromNode?.layerId) || !visibleLayerIds.has(toNode?.layerId)) return;
-
-    const fromEl = document.querySelector(`#${conn.from} .port.output[data-index="${conn.fromIdx}"]`);
-    const toEl = document.querySelector(`#${conn.to} .port.input[data-index="${conn.toIdx}"]`);
-
-    if (fromEl && toEl) {
-      const viewRect = canvas.getBoundingClientRect();
-      const rA = fromEl.getBoundingClientRect();
-      const rB = toEl.getBoundingClientRect();
-
-      const x1 = (rA.left - viewRect.left + rA.width / 2) / scale;
-      const y1 = (rA.top - viewRect.top + rA.height / 2) / scale;
-      const x2 = (rB.left - viewRect.left + rB.width / 2) / scale;
-      const y2 = (rB.top - viewRect.top + rB.height / 2) / scale;
-
-      const gradId = `grad_${conn.id}`;
-      
-      // Reuse cached gradient if available
-      let grad = gradientCache.get(gradId);
-      if (!grad) {
-        grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
-        grad.setAttribute('id', gradId);
-        grad.setAttribute('gradientUnits', 'userSpaceOnUse');
-        
-        const stopStart = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-        stopStart.setAttribute('offset', '0%');
-        stopStart.setAttribute('stop-color', '#3a86ff');
-        
-        const stopEnd = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-        stopEnd.setAttribute('offset', '100%');
-        stopEnd.setAttribute('stop-color', '#9d4edd');
-        
-        grad.appendChild(stopStart);
-        grad.appendChild(stopEnd);
-        gradientCache.set(gradId, grad);
-      }
-      
-      // Update gradient coordinates
-      grad.setAttribute('x1', x1);
-      grad.setAttribute('y1', y1);
-      grad.setAttribute('x2', x2);
-      grad.setAttribute('y2', y2);
-      defs.appendChild(grad);
-
-      const dx = Math.abs(x2 - x1) * 0.5;
-      const pathD = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
-
-      const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      group.setAttribute('class', `connector-group ${selectedConnId === conn.id ? 'selected' : ''}`);
-
-      const hitbox = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      hitbox.setAttribute('d', pathD);
-      hitbox.setAttribute('class', 'connector-hitbox');
-
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', pathD);
-      path.setAttribute('class', 'connector');
-      
-      if (selectedConnId !== conn.id) {
-        path.setAttribute('stroke', `url(#${gradId})`);
-      }
-
-      group.appendChild(hitbox);
-      group.appendChild(path);
-      
-      group.addEventListener('pointerdown', (e) => { 
-        e.stopPropagation(); 
-        selectConnection(conn.id); 
-      });
-      svgLayer.appendChild(group);
-    }
-  });
-}
-
-// --- Inspector Panels ---
 function selectNode(id) {
   deselectAll();
   selectedNodeId = id;
-  document.getElementById(id)?.classList.add('selected');
+  const el = document.getElementById(id);
+  if (el) el.classList.add('selected');
   renderInspector();
-  toggleInspectorPanel(true);
+  updateSidebarVisibility();
 }
 
 function selectBackdrop(id) {
   deselectAll();
   selectedBackdropId = id;
+  const el = document.getElementById(id);
+  if (el) el.classList.add('selected');
   renderInspector();
-  toggleInspectorPanel(true);
+  updateSidebarVisibility();
 }
 
 function selectConnection(id) {
   deselectAll();
   selectedConnId = id;
-  updateConnections();
+  const el = document.getElementById(id);
+  if (el) el.classList.add('selected');
   renderInspector();
-  toggleInspectorPanel(true);
+  updateSidebarVisibility();
 }
 
-function toggleInspectorPanel(show) {
-  const aside = document.querySelector('aside');
-  if (show) {
-    aside.classList.add('expanded');
-  } else {
-    aside.classList.remove('expanded');
-  }
+// --- Connections Engine ---
+function createConnection(fromId, fromIdx, toId, toIdx) {
+  const exists = connections.some(c => c.from === fromId && c.fromIdx === fromIdx && c.to === toId && c.toIdx === toIdx);
+  if (exists) return;
+
+  const conn = { id: 'conn_' + Date.now(), from: fromId, fromIdx, to: toId, toIdx };
+  connections.push(conn);
+  updateConnections();
 }
 
+function updateConnections() {
+  const existingGroups = new Set();
+
+  connections.forEach(conn => {
+    const fromNode = nodes.find(n => n.id === conn.from);
+    const toNode = nodes.find(n => n.id === conn.to);
+
+    if (!fromNode || !toNode) return;
+
+    const fromLayer = layers.find(l => l.id === fromNode.layerId);
+    const toLayer = layers.find(l => l.id === toNode.layerId);
+    if ((fromLayer && !fromLayer.visible) || (toLayer && !toLayer.visible)) {
+      const gEl = document.getElementById(conn.id);
+      if (gEl) gEl.style.display = 'none';
+      return;
+    }
+
+    const fromPort = document.querySelector(`.port.output[data-node="${conn.from}"][data-index="${conn.fromIdx}"]`);
+    const toPort = document.querySelector(`.port.input[data-node="${conn.to}"][data-index="${conn.toIdx}"]`);
+
+    if (!fromPort || !toPort) return;
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const fRect = fromPort.getBoundingClientRect();
+    const tRect = toPort.getBoundingClientRect();
+
+    const x1 = (fRect.left - canvasRect.left + fRect.width / 2) / scale;
+    const y1 = (fRect.top - canvasRect.top + fRect.height / 2) / scale;
+    const x2 = (tRect.left - canvasRect.left + tRect.width / 2) / scale;
+    const y2 = (tRect.top - canvasRect.top + tRect.height / 2) / scale;
+
+    const dx = Math.abs(x2 - x1) * 0.5;
+    const pathD = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+
+    let g = document.getElementById(conn.id);
+    if (!g) {
+      g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('id', conn.id);
+      g.setAttribute('class', `connector-group ${selectedConnId === conn.id ? 'selected' : ''}`);
+
+      const pathBg = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      pathBg.setAttribute('class', 'connector-bg');
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('class', 'connector-path');
+      path.setAttribute('stroke', fromNode.color || '#00e5ff');
+
+      g.appendChild(pathBg);
+      g.appendChild(path);
+
+      g.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        selectConnection(conn.id);
+      });
+
+      svgLayer.appendChild(g);
+    }
+
+    g.style.display = 'block';
+    const paths = g.querySelectorAll('path');
+    paths[0].setAttribute('d', pathD);
+    paths[1].setAttribute('d', pathD);
+    paths[1].setAttribute('stroke', fromNode.color || '#00e5ff');
+
+    existingGroups.add(conn.id);
+  });
+
+  Array.from(svgLayer.querySelectorAll('g.connector-group')).forEach(g => {
+    if (!existingGroups.has(g.id)) g.remove();
+  });
+}
+
+// --- Dynamic Inspector Panel ---
 function renderInspector() {
   const container = document.getElementById('inspector-content');
   
@@ -698,188 +683,150 @@ function renderInspector() {
     const node = nodes.find(n => n.id === selectedNodeId);
     if (!node) return;
 
-    const layerOpts = layers.map(l => `<option value="${l.id}" ${l.id === node.layerId ? 'selected' : ''}>${l.name}</option>`).join('');
-
     container.innerHTML = `
-      <div class="field">
-        <label>Device Name</label>
-        <input type="text" value="${node.label}" oninput="updateNodeProp('${node.id}', 'label', this.value)">
+      <div class="inspector-group">
+        <label>Label</label>
+        <input type="text" value="${node.label}" onchange="updateNodeProp('label', this.value)">
       </div>
-      <div class="field">
-        <label>IP / ID Address</label>
-        <input type="text" value="${node.ip}" oninput="updateNodeProp('${node.id}', 'ip', this.value)">
-      </div>
-      <div class="field">
-        <label>Header Accent Color</label>
-        <input type="color" value="${node.color}" onchange="updateNodeProp('${node.id}', 'color', this.value)">
-      </div>
-      <div class="field-row">
-        <div class="field" style="flex:1;">
-          <label>IN Ports</label>
-          <input type="number" min="0" max="32" value="${node.inPorts}" onchange="updateNodeProp('${node.id}', 'inPorts', this.value)">
-        </div>
-        <div class="field" style="flex:1;">
-          <label>OUT Ports</label>
-          <input type="number" min="0" max="32" value="${node.outPorts}" onchange="updateNodeProp('${node.id}', 'outPorts', this.value)">
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field" style="flex:1;">
-          <label>Width (px)</label>
-          <input type="number" min="160" max="600" value="${Math.round(node.w)}" onchange="updateNodeProp('${node.id}', 'w', this.value)">
-        </div>
-        <div class="field" style="flex:1;">
-          <label>Height (px)</label>
-          <input type="number" min="100" max="800" value="${Math.round(node.h)}" onchange="updateNodeProp('${node.id}', 'h', this.value)">
-        </div>
-      </div>
-      <div class="field">
+      <div class="inspector-group">
         <label>Layer</label>
-        <select onchange="updateNodeProp('${node.id}', 'layerId', this.value)">${layerOpts}</select>
+        <select onchange="updateNodeProp('layerId', this.value)">
+          ${layers.map(l => `<option value="${l.id}" ${l.id === node.layerId ? 'selected' : ''}>${l.name}</option>`).join('')}
+        </select>
       </div>
-      <div class="field-row" style="margin-top:10px;">
-        <button onclick="toggleStar('${node.id}')" style="flex:1;">${node.starred ? '★ Unstar' : '☆ Star Node'}</button>
-        <button onclick="toggleHighlight('${node.id}')" style="flex:1;">${node.highlighted ? 'Unhighlight' : '⚡ Highlight'}</button>
+      <div class="inspector-group">
+        <label>Accent Color</label>
+        <input type="color" value="${node.color}" onchange="updateNodeProp('color', this.value)">
       </div>
-      <button onclick="deleteNode('${node.id}')" style="margin-top:12px; width:100%; border-color:var(--accent-pink); color:var(--accent-pink);">Remove Device</button>
+      <div class="inspector-group">
+        <label>Inputs</label>
+        <input type="number" min="0" max="32" value="${node.inPorts}" onchange="updateNodePorts('inPorts', this.value)">
+      </div>
+      <div class="inspector-group">
+        <label>Outputs</label>
+        <input type="number" min="0" max="32" value="${node.outPorts}" onchange="updateNodePorts('outPorts', this.value)">
+      </div>
+      <div class="setting-item" style="margin: 12px 0;">
+        <label>Lock Node Size</label>
+        <input type="checkbox" ${node.scaleLocked ? 'checked' : ''} onchange="updateNodeProp('scaleLocked', this.checked)">
+      </div>
+      <div class="inspector-group">
+        <label>IP / ID Tag</label>
+        <input type="text" value="${node.ip || ''}" onchange="updateNodeProp('ip', this.value)">
+      </div>
+      <button onclick="deleteSelectedNode()" style="width:100%; margin-top:16px; border-color:var(--accent-pink); color:var(--accent-pink);">Delete Node</button>
     `;
   } else if (selectedBackdropId) {
     const bd = backdrops.find(b => b.id === selectedBackdropId);
     if (!bd) return;
 
     container.innerHTML = `
-      <div class="field">
-        <label>Group Backdrop Title</label>
-        <input type="text" value="${bd.title}" oninput="updateBackdropProp('${bd.id}', 'title', this.value)">
+      <div class="inspector-group">
+        <label>Backdrop Title</label>
+        <input type="text" value="${bd.title}" onchange="updateBackdropProp('title', this.value)">
       </div>
-      <div class="field">
-        <label>Border Accent Color</label>
-        <input type="color" value="${bd.color}" onchange="updateBackdropProp('${bd.id}', 'color', this.value)">
+      <div class="inspector-group">
+        <label>Border Color</label>
+        <input type="color" value="${bd.color}" onchange="updateBackdropProp('color', this.value)">
       </div>
-      <button onclick="deleteBackdrop('${bd.id}')" style="margin-top:12px; width:100%; border-color:var(--accent-pink); color:var(--accent-pink);">Delete Backdrop</button>
+      <button onclick="deleteSelectedBackdrop()" style="width:100%; margin-top:16px; border-color:var(--accent-pink); color:var(--accent-pink);">Delete Backdrop</button>
     `;
   } else if (selectedConnId) {
     container.innerHTML = `
-      <div class="field"><label>Cable Connection</label><span style="font-size:0.8rem;">Active Signal Route</span></div>
-      <button onclick="deleteConnection('${selectedConnId}')" style="margin-top:12px; width:100%; border-color:var(--accent-pink); color:var(--accent-pink);">Remove Connection</button>
+      <p style="font-size:0.85rem; margin-bottom:12px;">Cable Connection Selected</p>
+      <button onclick="deleteSelectedConnection()" style="width:100%; border-color:var(--accent-pink); color:var(--accent-pink);">Disconnect Cable</button>
     `;
   } else {
-    container.innerHTML = '<div style="font-size: 0.78rem; color: var(--text-muted); text-align: center; margin-top: 2rem;">Select a node, backdrop, or cable to inspect.</div>';
+    container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem;">Select a node, connection, or backdrop to inspect properties.</p>`;
   }
 }
 
-function updateNodeProp(id, prop, val) {
-  const node = nodes.find(n => n.id === id);
-  if (!node) return;
-  
-  if (['inPorts', 'outPorts', 'w', 'h'].includes(prop)) val = parseInt(val) || 0;
-  node[prop] = val;
-
-  if (prop === 'inPorts' || prop === 'outPorts') {
-    const requiredH = Math.max(110, Math.max(node.inPorts, node.outPorts) * 28 + 50);
-    node.h = requiredH;
-  }
-
-  if (['inPorts', 'outPorts', 'color', 'w', 'h'].includes(prop)) {
-    const el = document.getElementById(id);
-    el?.remove();
+function updateNodeProp(prop, val) {
+  const node = nodes.find(n => n.id === selectedNodeId);
+  if (node) {
+    node[prop] = val;
     renderNodeToDOM(node);
-    selectNode(id);
     updateConnections();
-  } else {
-    const el = document.getElementById(id);
-    if (prop === 'label' && el) el.querySelector('.lbl').innerText = val;
-    if (prop === 'ip' && el) el.querySelector('.ip-tag').innerText = val;
   }
 }
 
-function toggleStar(id) {
-  const node = nodes.find(n => n.id === id);
+// Resizes node up AND down when ports change (unless scale is locked)
+function updateNodePorts(prop, val) {
+  const node = nodes.find(n => n.id === selectedNodeId);
   if (node) {
-    node.starred = !node.starred;
-    document.getElementById(id)?.classList.toggle('starred', node.starred);
-    renderInspector();
+    node[prop] = Math.max(0, parseInt(val) || 0);
+    
+    // Dynamically adjust height if size scale is unlocked
+    if (!node.scaleLocked) {
+      const targetH = Math.max(110, Math.max(node.inPorts, node.outPorts) * 28 + 50);
+      node.h = targetH;
+    }
+
+    renderNodeToDOM(node);
+    updateConnections();
   }
 }
 
-function toggleHighlight(id) {
-  const node = nodes.find(n => n.id === id);
-  if (node) {
-    node.highlighted = !node.highlighted;
-    document.getElementById(id)?.classList.toggle('highlighted', node.highlighted);
-    renderInspector();
-  }
-}
-
-function updateBackdropProp(id, prop, val) {
-  const bd = backdrops.find(b => b.id === id);
+function updateBackdropProp(prop, val) {
+  const bd = backdrops.find(b => b.id === selectedBackdropId);
   if (bd) {
     bd[prop] = val;
     updateBackdropDOM(bd);
   }
 }
 
-// --- Layer Operations ---
+function deleteSelectedNode() {
+  if (!selectedNodeId) return;
+  nodes = nodes.filter(n => n.id !== selectedNodeId);
+  connections = connections.filter(c => c.from !== selectedNodeId && c.to !== selectedNodeId);
+  const el = document.getElementById(selectedNodeId);
+  if (el) el.remove();
+  deselectAll();
+  updateConnections();
+}
+
+function deleteSelectedBackdrop() {
+  if (!selectedBackdropId) return;
+  backdrops = backdrops.filter(b => b.id !== selectedBackdropId);
+  const el = document.getElementById(selectedBackdropId);
+  if (el) el.remove();
+  deselectAll();
+}
+
+function deleteSelectedConnection() {
+  if (!selectedConnId) return;
+  connections = connections.filter(c => c.id !== selectedConnId);
+  const el = document.getElementById(selectedConnId);
+  if (el) el.remove();
+  deselectAll();
+  updateConnections();
+}
+
+// --- Layers Management ---
 function renderLayers() {
   layersListEl.innerHTML = '';
-  layers.forEach((layer) => {
-    const div = document.createElement('div');
-    div.className = 'layer-item';
-    div.innerHTML = `
-      <button style="padding:2px 4px; border:none; background:transparent; cursor:pointer;" onclick="toggleLayer('${layer.id}')" title="Toggle Visibility">
-        ${layer.visible ? '👁' : '🕶'}
-      </button>
-      <input type="text" value="${layer.name}" onchange="updateLayerName('${layer.id}', this.value)">
-      <button style="padding:2px 6px; border:none; background:transparent; color:var(--accent-pink); cursor:pointer; font-weight:bold;" onclick="deleteLayer('${layer.id}')" title="Delete Layer">
-        ✕
-      </button>
+  layers.forEach(layer => {
+    const item = document.createElement('div');
+    item.className = 'layer-item';
+    item.innerHTML = `
+      <span class="layer-toggle">${layer.visible ? '👁' : '🙈'}</span>
+      <span style="flex:1;">${layer.name}</span>
     `;
-    layersListEl.appendChild(div);
+    item.querySelector('.layer-toggle').addEventListener('click', (e) => {
+      e.stopPropagation();
+      layer.visible = !layer.visible;
+      renderLayers();
+      refreshVisibility();
+    });
+    layersListEl.appendChild(item);
   });
-  refreshVisibility();
 }
 
 function addLayer() {
-  const newLayerId = 'layer_' + Date.now();
-  layers.push({ id: newLayerId, name: 'New Layer', visible: true });
+  const name = prompt('Enter new layer name:', 'New Signal Path');
+  if (!name) return;
+  layers.push({ id: 'layer_' + Date.now(), name, visible: true });
   renderLayers();
-}
-
-function toggleLayer(id) {
-  const layer = layers.find(l => l.id === id);
-  if (layer) layer.visible = !layer.visible;
-  renderLayers();
-}
-
-function updateLayerName(id, name) {
-  const layer = layers.find(l => l.id === id);
-  if (layer) layer.name = name;
-}
-
-function deleteLayer(idToPort) {
-  if (layers.length <= 1) {
-    if (!confirm("This is the last layer. Deleting it will create a default 'Main Layer' to keep your nodes active. Proceed?")) {
-      return;
-    }
-  }
-
-  layers = layers.filter(l => l.id !== idToPort);
-
-  if (layers.length === 0) {
-    layers.push({ id: 'layer_default', name: 'Main Layer', visible: true });
-  }
-
-  const targetLayerId = layers[0].id;
-
-  nodes.forEach(node => {
-    if (node.layerId === idToPort) {
-      node.layerId = targetLayerId;
-    }
-  });
-
-  renderLayers();
-  refreshVisibility();
-  if (selectedNodeId) renderInspector();
 }
 
 function refreshVisibility() {
@@ -893,79 +840,47 @@ function refreshVisibility() {
   updateConnections();
 }
 
-// --- Deletions & Canvas Utilities ---
-function deleteNode(id) {
-  nodes = nodes.filter(n => n.id !== id);
-  connections = connections.filter(c => c.from !== id && c.to !== id);
-  const el = document.getElementById(id);
-  if (el) {
-    el.remove();
-  }
-  deselectAll();
-  updateConnections();
-}
-
-function deleteBackdrop(id) {
-  backdrops = backdrops.filter(b => b.id !== id);
-  const el = document.getElementById(id);
-  if (el) {
-    el.remove();
-  }
-  deselectAll();
-}
-
-function deleteConnection(id) {
-  connections = connections.filter(c => c.id !== id);
-  deselectAll();
-  updateConnections();
-}
-
-function clearCanvas() {
-  if (confirm('Clear entire schematic canvas?')) {
-    nodes = []; backdrops = []; connections = [];
-    document.querySelectorAll('.node, .backdrop').forEach(el => el.remove());
-    deselectAll();
-    updateConnections();
-    applyTransform();
-  }
-}
-
-function toggleGrid() {
-  snapToGrid = !snapToGrid;
-  document.getElementById('btn-grid').classList.toggle('active', snapToGrid);
-}
-
 function snapAllNodes() {
-  nodes.forEach(n => {
-    n.x = Math.round(n.x / GRID_SIZE) * GRID_SIZE;
-    n.y = Math.round(n.y / GRID_SIZE) * GRID_SIZE;
-    updateNodePositionDOM(n);
+  nodes.forEach(node => {
+    node.x = Math.round(node.x / GRID_SIZE) * GRID_SIZE;
+    node.y = Math.round(node.y / GRID_SIZE) * GRID_SIZE;
+    updateNodePositionDOM(node);
   });
   updateConnections();
 }
 
-// --- Import / Export System ---
-function exportJSON() {
-  const projectName = projectNameInput.value.trim() || "Untitled Project";
-  const schematicData = { 
-    version: "2026.2", 
-    projectName,
-    layers, 
-    backdrops, 
-    nodes, 
-    connections, 
-    viewport: { scale, panX, panY } 
-  };
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(schematicData, null, 2));
-  const downloadAnchor = document.createElement('a');
-  downloadAnchor.setAttribute("href", dataStr);
-  downloadAnchor.setAttribute("download", `${projectName.replace(/[^a-z0-9_-]/gi, '_')}.json`);
-  document.body.appendChild(downloadAnchor);
-  downloadAnchor.click();
-  downloadAnchor.remove();
+function clearCanvas() {
+  if (confirm('Are you sure you want to clear the entire canvas?')) {
+    nodes = []; backdrops = []; connections = [];
+    document.querySelectorAll('.node, .backdrop').forEach(el => el.remove());
+    svgLayer.innerHTML = '<path id="drag-line" class="drag-line" d="" style="display:none;"></path>';
+    dragLine = document.getElementById('drag-line');
+    deselectAll();
+    closeSettings();
+  }
 }
 
-function importJSON() { document.getElementById('file-input').click(); }
+// --- Save & Load System ---
+function exportJSON() {
+  const data = {
+    projectName: projectNameInput.value,
+    version: '1.2.0',
+    layers, backdrops, nodes, connections,
+    viewport: { scale, panX, panY }
+  };
+  const jsonStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (projectNameInput.value.toLowerCase().replace(/\s+/g, '_') || 'project') + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importJSON() {
+  document.getElementById('file-input').click();
+}
 
 function handleFileSelect(evt) {
   const file = evt.target.files[0];
@@ -995,9 +910,7 @@ function handleFileSelect(evt) {
       backdrops.forEach(bd => renderBackdropToDOM(bd));
       nodes.forEach(node => renderNodeToDOM(node));
       
-      requestAnimationFrame(() => {
-        updateConnections();
-      });
+      requestAnimationFrame(() => updateConnections());
       deselectAll();
     } catch (err) {
       alert('Failed to parse project JSON file.');
@@ -1007,12 +920,13 @@ function handleFileSelect(evt) {
   evt.target.value = '';
 }
 
+// --- Global Keybinds ---
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Delete' || e.key === 'Backspace') {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (selectedNodeId) deleteNode(selectedNodeId);
-    else if (selectedBackdropId) deleteBackdrop(selectedBackdropId);
-    else if (selectedConnId) deleteConnection(selectedConnId);
+    if (selectedNodeId) deleteSelectedNode();
+    else if (selectedBackdropId) deleteSelectedBackdrop();
+    else if (selectedConnId) deleteSelectedConnection();
   }
 });
 
