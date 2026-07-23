@@ -18,27 +18,22 @@ let resizingBackdrop = null;
 let resizingNode = null;
 
 let currentTheme = 'dark';
+let uiScale = 1;
+let mobileMode = false;
 let scale = 1, panX = 0, panY = 0;
 let isPanning = false;
 let snapToGrid = true;
 const GRID_SIZE = 28;
+const COLLISION_CHECK_RADIUS = 300;
 
 let viewport, canvas, svgLayer, dragLine, searchInput, searchDropdown, layersListEl, projectNameInput;
 
 // Performance optimization: RAF throttling for drag operations
 let rafId = null;
-let pendingDragUpdate = false;
-let lastDragNodePos = { x: 0, y: 0 };
-let lastPanPos = { x: 0, y: 0 };
-
-// Touch tracking with proper coordinate history
 let lastPointerPos = { x: 0, y: 0 };
 let touchStartDist = 0;
 
-// Cached DOM elements
-const domCache = {};
-
-// Gradient cache to avoid recreation
+// Gradient cache
 const gradientCache = new Map();
 
 function init() {
@@ -51,13 +46,13 @@ function init() {
   layersListEl = document.getElementById('layers-list');
   projectNameInput = document.getElementById('project-name');
 
-  // Load saved theme
+  // Load saved settings
   const savedTheme = localStorage.getItem('nodelab-theme') || 'dark';
+  const savedScale = localStorage.getItem('nodelab-ui-scale') || '1';
   setTheme(savedTheme);
+  setUIScale(parseFloat(savedScale));
 
-  // Immediately render background dots and scale positioning on startup
   applyTransform();
-
   renderLayers();
   setupSearch();
   setupPointerControls();
@@ -83,7 +78,6 @@ function setTheme(themeName) {
   document.documentElement.setAttribute('data-theme', themeName);
   localStorage.setItem('nodelab-theme', themeName);
   
-  // Update active theme button
   document.querySelectorAll('.theme-btn').forEach(btn => {
     btn.classList.remove('active');
     if (btn.dataset.theme === themeName) {
@@ -92,24 +86,61 @@ function setTheme(themeName) {
   });
 }
 
+function setUIScale(scale) {
+  uiScale = Math.max(0.7, Math.min(1.5, scale));
+  document.documentElement.style.setProperty('--ui-scale', uiScale);
+  localStorage.setItem('nodelab-ui-scale', uiScale.toString());
+  document.getElementById('scale-value').textContent = Math.round(uiScale * 100);
+  document.getElementById('ui-scale-slider').value = Math.round(uiScale * 100);
+}
+
+function updateUIScale(value) {
+  setUIScale(value / 100);
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const btn = document.getElementById('btn-sidebar');
+  sidebar.classList.toggle('collapsed');
+  btn.textContent = sidebar.classList.contains('collapsed') ? '▶ Panel' : '◀ Panel';
+}
+
+function toggleMobileMode() {
+  mobileMode = document.getElementById('setting-mobile').checked;
+  if (mobileMode) {
+    // Disable editing
+    document.getElementById('btn-sidebar').disabled = true;
+    document.querySelectorAll('.node-header, .backdrop-header').forEach(el => {
+      el.style.cursor = 'grab';
+      el.style.pointerEvents = 'none';
+    });
+    document.querySelectorAll('.node-resize, .backdrop-resize').forEach(el => {
+      el.style.display = 'none';
+    });
+  } else {
+    // Enable editing
+    document.getElementById('btn-sidebar').disabled = false;
+    document.querySelectorAll('.node-header, .backdrop-header').forEach(el => {
+      el.style.cursor = 'move';
+      el.style.pointerEvents = 'auto';
+    });
+    document.querySelectorAll('.node-resize, .backdrop-resize').forEach(el => {
+      el.style.display = 'block';
+    });
+  }
+}
+
 function openSettings() {
   const modal = document.getElementById('settings-modal');
   modal.classList.add('active');
-  
-  // Update grid checkbox
   document.getElementById('setting-grid').checked = snapToGrid;
+  document.getElementById('setting-mobile').checked = mobileMode;
 }
 
 function closeSettings() {
-  const modal = document.getElementById('settings-modal');
-  modal.classList.remove('active');
+  document.getElementById('settings-modal').classList.remove('active');
 }
 
-function updateGridSetting() {
-  snapToGrid = document.getElementById('setting-grid').checked;
-}
-
-// Close modal when clicking outside
 window.addEventListener('click', (e) => {
   const modal = document.getElementById('settings-modal');
   if (e.target === modal) {
@@ -117,9 +148,69 @@ window.addEventListener('click', (e) => {
   }
 });
 
-// --- Unified PointerEvents API for mouse, trackpad, and touch ---
+function updateGridSetting() {
+  snapToGrid = document.getElementById('setting-grid').checked;
+}
+
+// --- Smart Placement Algorithm ---
+function findUnoccupiedPosition(preferredX, preferredY, width, height) {
+  const occupied = new Set();
+  nodes.forEach(n => occupied.add(`${Math.round(n.x / GRID_SIZE)},${Math.round(n.y / GRID_SIZE)}`);
+  backdrops.forEach(bd => occupied.add(`${Math.round(bd.x / GRID_SIZE)},${Math.round(bd.y / GRID_SIZE)}`);
+  
+  let x = preferredX;
+  let y = preferredY;
+  
+  if (snapToGrid) {
+    x = Math.round(x / GRID_SIZE) * GRID_SIZE;
+    y = Math.round(y / GRID_SIZE) * GRID_SIZE;
+  }
+  
+  // Check if preferred position is free
+  if (!isPositionOccupied(x, y, width, height, nodes, backdrops)) {
+    return { x, y };
+  }
+  
+  // Spiral search around preferred position
+  const maxRadius = COLLISION_CHECK_RADIUS;
+  for (let radius = GRID_SIZE; radius < maxRadius; radius += GRID_SIZE) {
+    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
+      const testX = preferredX + Math.cos(angle) * radius;
+      const testY = preferredY + Math.sin(angle) * radius;
+      
+      const finalX = snapToGrid ? Math.round(testX / GRID_SIZE) * GRID_SIZE : testX;
+      const finalY = snapToGrid ? Math.round(testY / GRID_SIZE) * GRID_SIZE : testY;
+      
+      if (!isPositionOccupied(finalX, finalY, width, height, nodes, backdrops)) {
+        return { x: finalX, y: finalY };
+      }
+    }
+  }
+  
+  // Fallback to preferred position if no space found
+  return { x, y };
+}
+
+function isPositionOccupied(x, y, w, h, nodesList, backdropList) {
+  for (let node of nodesList) {
+    if (rectsOverlap(x, y, w, h, node.x, node.y, node.w, node.h)) {
+      return true;
+    }
+  }
+  for (let backdrop of backdropList) {
+    if (rectsOverlap(x, y, w, h, backdrop.x, backdrop.y, backdrop.w, backdrop.h)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function rectsOverlap(x1, y1, w1, h1, x2, y2, w2, h2) {
+  return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
+}
+
+// --- Unified PointerEvents API ---
 function setupPointerControls() {
-  // Wheel zoom (mouse wheel + trackpad pinch zoom)
   viewport.addEventListener('wheel', (e) => {
     e.preventDefault();
     const delta = -e.deltaY * 0.001;
@@ -134,23 +225,17 @@ function setupPointerControls() {
     applyTransform();
   }, { passive: false });
 
-  // Pointer down - unified mouse/touch/pen handling
   viewport.addEventListener('pointerdown', (e) => {
-    // Check if clicking on canvas itself (not on elements)
     if (e.target !== viewport && e.target !== canvas && !e.target.closest('.node, .port, .backdrop, .backdrop-header, .node-header, .backdrop-resize, .node-resize')) {
       return;
     }
     
     if (e.pointerType === 'touch') {
       const target = e.target.closest('.node, .port, .backdrop, .backdrop-header, .node-header, .backdrop-resize, .node-resize');
-      if (target) {
-        return; // Let node/backdrop handlers take over
-      }
-      // Single touch pan
+      if (target) return;
       isPanning = true;
       lastPointerPos = { x: e.clientX, y: e.clientY };
     } else if (e.pointerType === 'mouse') {
-      // Mouse: left-click on viewport or middle-click for pan
       if (e.button === 1 || (e.button === 0 && (e.target === viewport || e.target === canvas))) {
         isPanning = true;
         viewport.style.cursor = 'grabbing';
@@ -158,7 +243,6 @@ function setupPointerControls() {
         lastPointerPos = { x: e.clientX, y: e.clientY };
       }
     } else if (e.pointerType === 'pen') {
-      // Pen: treat like touch
       const target = e.target.closest('.node, .port, .backdrop');
       if (!target) {
         isPanning = true;
@@ -167,7 +251,6 @@ function setupPointerControls() {
     }
   });
 
-  // Pointer move - throttled with RAF
   viewport.addEventListener('pointermove', (e) => {
     if (!rafId) {
       rafId = requestAnimationFrame(() => {
@@ -177,7 +260,6 @@ function setupPointerControls() {
     }
   });
 
-  // Pointer up
   viewport.addEventListener('pointerup', () => {
     if (rafId) {
       cancelAnimationFrame(rafId);
@@ -187,7 +269,6 @@ function setupPointerControls() {
     isPanning = false;
     viewport.style.cursor = 'grab';
     
-    // Snap to grid on drag end
     if (dragNodeId && snapToGrid) {
       const node = nodes.find(n => n.id === dragNodeId);
       if (node) {
@@ -203,7 +284,6 @@ function setupPointerControls() {
     resizingNode = null;
   });
 
-  // Touch-specific: two-finger pinch zoom
   viewport.addEventListener('touchstart', (e) => {
     if (e.touches.length === 2) {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -239,7 +319,6 @@ function setupPointerControls() {
   }, { passive: true });
 }
 
-// Optimized pointer move handler
 function handlePointerMove(e) {
   const rect = viewport.getBoundingClientRect();
   const currentX = e.clientX;
@@ -249,13 +328,15 @@ function handlePointerMove(e) {
   
   lastPointerPos = { x: currentX, y: currentY };
 
+  if (mobileMode && !isPanning) return; // Only pan in mobile mode
+
   if (isPanning) {
     panX += dx;
     panY += dy;
     applyTransform();
   }
   
-  if (dragNodeId) {
+  if (dragNodeId && !mobileMode) {
     const node = nodes.find(n => n.id === dragNodeId);
     if (node) {
       node.x += dx / scale;
@@ -265,7 +346,7 @@ function handlePointerMove(e) {
     }
   }
 
-  if (resizingNode) {
+  if (resizingNode && !mobileMode) {
     const node = nodes.find(n => n.id === resizingNode);
     if (node) {
       node.w = Math.max(160, node.w + dx / scale);
@@ -275,7 +356,7 @@ function handlePointerMove(e) {
     }
   }
 
-  if (dragBackdrop) {
+  if (dragBackdrop && !mobileMode) {
     const bd = backdrops.find(b => b.id === dragBackdrop.id);
     if (bd) {
       bd.x += dx / scale;
@@ -284,7 +365,7 @@ function handlePointerMove(e) {
     }
   }
 
-  if (resizingBackdrop) {
+  if (resizingBackdrop && !mobileMode) {
     const bd = backdrops.find(b => b.id === resizingBackdrop);
     if (bd) {
       bd.w = Math.max(150, bd.w + dx / scale);
@@ -308,7 +389,6 @@ function handlePointerMove(e) {
 
 function applyTransform() {
   canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-  // Scale grid dots with zoom level
   const scaledGridSize = GRID_SIZE * scale;
   viewport.style.backgroundSize = `${scaledGridSize}px ${scaledGridSize}px`;
   viewport.style.backgroundPosition = `${panX}px ${panY}px`;
@@ -327,7 +407,7 @@ function deselectAll() {
   renderInspector();
 }
 
-// --- Search System (Optimized with Debouncing) ---
+// --- Search System ---
 let searchDebounceTimer = null;
 
 function setupSearch() {
@@ -343,7 +423,6 @@ function setupSearch() {
       return;
     }
     
-    // Use DocumentFragment for efficient batch DOM insertion
     const fragment = document.createDocumentFragment();
     filtered.forEach(comp => {
       const div = document.createElement('div');
@@ -357,12 +436,20 @@ function setupSearch() {
         const viewCenterY = (-panY + viewport.clientHeight / 2) / scale;
         
         const targetLayerId = layers.length > 0 ? layers[0].id : 'layer_default';
+        const autoH = Math.max(110, Math.max(comp.inPorts || 1, comp.outPorts || 1) * 28 + 50);
+        
+        const pos = findUnoccupiedPosition(
+          viewCenterX - 100, 
+          viewCenterY - 40, 
+          220, 
+          autoH
+        );
         
         createNode(
           comp.type, 
           targetLayerId, 
-          viewCenterX - 100, 
-          viewCenterY - 40, 
+          pos.x,
+          pos.y,
           comp.color, 
           comp.inPorts !== undefined ? comp.inPorts : 1, 
           comp.outPorts !== undefined ? comp.outPorts : 1
@@ -382,7 +469,6 @@ function setupSearch() {
     renderResults(searchInput.value); 
   });
 
-  // Debounced input handling
   searchInput.addEventListener('input', (e) => {
     clearTimeout(searchDebounceTimer);
     searchDropdown.classList.add('active');
@@ -399,7 +485,8 @@ function setupSearch() {
 // --- Backdrops ---
 function addBackdrop(title = 'System Zone', x = 200, y = 200, w = 300, h = 200, color = '#3a86ff') {
   const id = 'bd_' + Date.now();
-  const bd = { id, title, x, y, w, h, color };
+  const pos = findUnoccupiedPosition(x, y, w, h);
+  const bd = { id, title, x: pos.x, y: pos.y, w, h, color };
   backdrops.push(bd);
   renderBackdropToDOM(bd);
   selectBackdrop(id);
@@ -418,6 +505,7 @@ function renderBackdropToDOM(bd) {
 
   const header = el.querySelector('.backdrop-header');
   header.addEventListener('pointerdown', (e) => {
+    if (mobileMode) return;
     e.stopPropagation();
     dragBackdrop = { id: bd.id };
     selectBackdrop(bd.id);
@@ -425,6 +513,7 @@ function renderBackdropToDOM(bd) {
 
   const resizer = el.querySelector('.backdrop-resize');
   resizer.addEventListener('pointerdown', (e) => {
+    if (mobileMode) return;
     e.stopPropagation();
     resizingBackdrop = bd.id;
   });
@@ -448,7 +537,8 @@ function updateBackdropDOM(bd) {
 // --- Nodes Management ---
 function createNode(type, layerId, x, y, color, inPorts = 1, outPorts = 1) {
   const autoH = Math.max(110, Math.max(inPorts, outPorts) * 28 + 50);
-  createNodeWithId('node_' + Date.now(), type, layerId, x, y, color, inPorts, outPorts, 220, autoH);
+  const pos = findUnoccupiedPosition(x, y, 220, autoH);
+  createNodeWithId('node_' + Date.now(), type, layerId, pos.x, pos.y, color, inPorts, outPorts, 220, autoH);
 }
 
 function createNodeWithId(id, type, layerId, x, y, color, inPorts = 1, outPorts = 1, w = 220, h = 110) {
@@ -503,6 +593,7 @@ function renderNodeToDOM(node) {
 
   const header = el.querySelector('.node-header');
   header.addEventListener('pointerdown', (e) => {
+    if (mobileMode) return;
     dragNodeId = node.id;
     selectNode(node.id);
     e.stopPropagation();
@@ -510,6 +601,7 @@ function renderNodeToDOM(node) {
 
   const resizer = el.querySelector('.node-resize');
   resizer.addEventListener('pointerdown', (e) => {
+    if (mobileMode) return;
     resizingNode = node.id;
     selectNode(node.id);
     e.stopPropagation();
@@ -517,9 +609,9 @@ function renderNodeToDOM(node) {
 
   el.addEventListener('pointerdown', () => selectNode(node.id));
 
-  // Cache port elements for better performance
   el.querySelectorAll('.port').forEach(port => {
     port.addEventListener('pointerdown', (e) => {
+      if (mobileMode) return;
       e.stopPropagation();
       const rect = port.getBoundingClientRect();
       const viewRect = canvas.getBoundingClientRect();
@@ -557,7 +649,7 @@ function updateNodeSizeDOM(node) {
   }
 }
 
-// --- Connections (Optimized) ---
+// --- Connections ---
 function createConnection(fromId, fromIdx, toId, toIdx) {
   if (connections.some(c => c.from === fromId && c.fromIdx === fromIdx && c.to === toId && c.toIdx === toIdx)) return;
   connections.push({ id: 'conn_' + Date.now(), from: fromId, fromIdx, to: toId, toIdx });
@@ -565,7 +657,6 @@ function createConnection(fromId, fromIdx, toId, toIdx) {
 }
 
 function updateConnections() {
-  // Remove old connector groups
   svgLayer.querySelectorAll('g.connector-group').forEach(el => el.remove());
 
   let defs = svgLayer.querySelector('defs');
@@ -576,14 +667,12 @@ function updateConnections() {
     defs.innerHTML = ''; 
   }
 
-  // Get visible layers once to avoid repeated lookups
   const visibleLayerIds = new Set(layers.filter(l => l.visible).map(l => l.id));
 
   connections.forEach(conn => {
     const fromNode = nodes.find(n => n.id === conn.from);
     const toNode = nodes.find(n => n.id === conn.to);
     
-    // Early exit for hidden layers
     if (!visibleLayerIds.has(fromNode?.layerId) || !visibleLayerIds.has(toNode?.layerId)) return;
 
     const fromEl = document.querySelector(`#${conn.from} .port.output[data-index="${conn.fromIdx}"]`);
@@ -601,7 +690,6 @@ function updateConnections() {
 
       const gradId = `grad_${conn.id}`;
       
-      // Reuse cached gradient if available
       let grad = gradientCache.get(gradId);
       if (!grad) {
         grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
@@ -621,7 +709,6 @@ function updateConnections() {
         gradientCache.set(gradId, grad);
       }
       
-      // Update gradient coordinates
       grad.setAttribute('x1', x1);
       grad.setAttribute('y1', y1);
       grad.setAttribute('x2', x2);
@@ -683,11 +770,9 @@ function selectConnection(id) {
 }
 
 function toggleInspectorPanel(show) {
-  const aside = document.querySelector('aside');
-  if (show) {
-    aside.classList.add('expanded');
-  } else {
-    aside.classList.remove('expanded');
+  const sidebar = document.getElementById('sidebar');
+  if (show && !sidebar.classList.contains('collapsed')) {
+    sidebar.classList.remove('collapsed');
   }
 }
 
@@ -893,14 +978,12 @@ function refreshVisibility() {
   updateConnections();
 }
 
-// --- Deletions & Canvas Utilities ---
+// --- Deletions & Canvas ---
 function deleteNode(id) {
   nodes = nodes.filter(n => n.id !== id);
   connections = connections.filter(c => c.from !== id && c.to !== id);
   const el = document.getElementById(id);
-  if (el) {
-    el.remove();
-  }
+  if (el) el.remove();
   deselectAll();
   updateConnections();
 }
@@ -908,9 +991,7 @@ function deleteNode(id) {
 function deleteBackdrop(id) {
   backdrops = backdrops.filter(b => b.id !== id);
   const el = document.getElementById(id);
-  if (el) {
-    el.remove();
-  }
+  if (el) el.remove();
   deselectAll();
 }
 
@@ -944,7 +1025,7 @@ function snapAllNodes() {
   updateConnections();
 }
 
-// --- Import / Export System ---
+// --- Import / Export ---
 function exportJSON() {
   const projectName = projectNameInput.value.trim() || "Untitled Project";
   const schematicData = { 

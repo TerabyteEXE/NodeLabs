@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Node Labs | TerabyteEXE</title>
   
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231e1e2e'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='middle' font-weight='bold'>⬡</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231e1e2e'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='middle' font-weight='bold'>⊕</text></svg>">
 
   <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -17,7 +17,7 @@
       <input type="text" id="project-name" class="project-name-input" value="Untitled Project" title="Project Name">
     </div>
     
-    <div class="toolbar-section">
+    <div class="toolbar-section" style="flex: 1;">
       <div class="search-wrapper">
         <input type="text" id="node-search" placeholder="🔍 Add device..." autocomplete="off">
         <div id="search-dropdown" class="search-dropdown"></div>
@@ -35,6 +35,7 @@
         <button onclick="exportJSON()">💾 Save</button>
         <button onclick="importJSON()">📂 Open</button>
         <button onclick="resetView()">🎯 Center</button>
+        <button onclick="toggleSidebar()" id="btn-sidebar">◀ Panel</button>
         <button onclick="openSettings()">⚙️ Settings</button>
       </div>
     </div>
@@ -49,7 +50,7 @@
       </div>
     </div>
 
-    <aside>
+    <aside id="sidebar">
       <div class="panel-section" style="flex: 0.4;">
         <h3>Layers <button onclick="addLayer()">+ Add</button></h3>
         <div id="layers-list"></div>
@@ -79,10 +80,17 @@
           <div class="theme-grid">
             <button class="theme-btn active" data-theme="dark" onclick="setTheme('dark')">🌙 Dark</button>
             <button class="theme-btn" data-theme="light" onclick="setTheme('light')">☀️ Light</button>
-            <button class="theme-btn" data-theme="grey" onclick="setTheme('grey')">🩶 Grey</button>
-            <button class="theme-btn" data-theme="vaporwave" onclick="setTheme('vaporwave')">🌌 Vaporwave</button>
+            <button class="theme-btn" data-theme="grey" onclick="setTheme('grey')">🤖 Grey</button>
+            <button class="theme-btn" data-theme="vaporwave" onclick="setTheme('vaporwave')">🌐 Vaporwave</button>
             <button class="theme-btn" data-theme="forest" onclick="setTheme('forest')">🌲 Forest</button>
             <button class="theme-btn" data-theme="sunset" onclick="setTheme('sunset')">🌅 Sunset</button>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>UI Scaling</h3>
+          <div class="slider-container">
+            <label>UI Scale: <span id="scale-value">100</span>%</label>
+            <input type="range" id="ui-scale-slider" min="70" max="150" value="100" oninput="updateUIScale(this.value)">
           </div>
         </div>
         <div class="settings-section">
@@ -90,6 +98,10 @@
           <div class="setting-item">
             <label>Grid Snap</label>
             <input type="checkbox" id="setting-grid" onchange="updateGridSetting()">
+          </div>
+          <div class="setting-item">
+            <label>Mobile Mode (View Only)</label>
+            <input type="checkbox" id="setting-mobile" onchange="toggleMobileMode()">
           </div>
         </div>
         <div class="settings-section">
