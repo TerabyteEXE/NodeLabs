@@ -88,7 +88,7 @@ function openSettings() {
   const modal = document.getElementById('settings-modal');
   modal.classList.add('active');
   
-  // Keep settings modal elements in sync
+  // Sync settings UI controls
   document.getElementById('setting-grid').checked = snapToGrid;
   document.getElementById('setting-sidebar').checked = alwaysShowSidebar;
 }
@@ -336,6 +336,10 @@ function handlePointerMove(e) {
 
 function applyTransform() {
   canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+  
+  // Set zoom custom property for scale-independent vector/border sharpness
+  canvas.style.setProperty('--zoom-scale', scale);
+
   const scaledGridSize = GRID_SIZE * scale;
   viewport.style.backgroundSize = `${scaledGridSize}px ${scaledGridSize}px`;
   viewport.style.backgroundPosition = `${panX}px ${panY}px`;
@@ -750,7 +754,7 @@ function updateNodeProp(prop, val) {
   }
 }
 
-// Resizes node up AND down when ports change (unless scale is locked)
+// Resizes node up AND down when ports change (unless size scale is locked)
 function updateNodePorts(prop, val) {
   const node = nodes.find(n => n.id === selectedNodeId);
   if (node) {
@@ -910,7 +914,9 @@ function handleFileSelect(evt) {
       backdrops.forEach(bd => renderBackdropToDOM(bd));
       nodes.forEach(node => renderNodeToDOM(node));
       
-      requestAnimationFrame(() => updateConnections());
+      requestAnimationFrame(() => {
+        updateConnections();
+      });
       deselectAll();
     } catch (err) {
       alert('Failed to parse project JSON file.');
