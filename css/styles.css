@@ -8,7 +8,6 @@
   --accent-pink: #f38ba8;
   --accent-blue: #89b4fa;
   --grid-dot: #45475a;
-  --ui-scale: 1;
 }
 
 [data-theme="light"] {
@@ -102,7 +101,6 @@ header {
   position: relative;
   z-index: 1000;
   overflow: visible !important;
-  font-size: calc(0.82rem * var(--ui-scale));
 }
 
 .brand {
@@ -132,6 +130,7 @@ header {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
 }
 
 .btn-group {
@@ -143,10 +142,10 @@ button {
   background-color: var(--bg-main);
   color: var(--text-main);
   border: 1px solid var(--border-color);
-  padding: calc(6px * var(--ui-scale)) calc(12px * var(--ui-scale));
+  padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: calc(0.82rem * var(--ui-scale));
+  font-size: 0.82rem;
   transition: all 0.15s ease;
   -webkit-appearance: none;
   appearance: none;
@@ -176,7 +175,7 @@ button.active {
   padding: 6px 12px;
   border-radius: 4px;
   width: 190px;
-  font-size: calc(0.82rem * var(--ui-scale));
+  font-size: 0.82rem;
   -webkit-appearance: none;
   appearance: none;
   -webkit-tap-highlight-color: transparent;
@@ -390,7 +389,6 @@ svg path.drag-line {
   cursor: move;
   touch-action: none;
   will-change: transform;
-  font-size: calc(0.82rem * var(--ui-scale));
 }
 
 .node.selected {
@@ -476,33 +474,32 @@ svg path.drag-line {
 }
 
 /* Right Sidebar & Inspector Panel */
-#sidebar {
+aside {
   width: 280px;
   background-color: var(--bg-panel);
   border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   z-index: 200;
-  transition: width 0.3s ease, opacity 0.3s ease, margin-right 0.3s ease;
-  opacity: 1;
+  transition: width 0.3s ease, opacity 0.3s ease;
+  opacity: 0;
+  width: 0;
   overflow: hidden;
 }
 
-#sidebar.collapsed {
-  width: 0;
-  opacity: 0;
-  margin-right: 0;
+aside.expanded {
+  opacity: 1;
+  width: 280px;
 }
 
 .panel-section {
-  padding: calc(12px * var(--ui-scale));
+  padding: 12px;
   border-bottom: 1px solid var(--border-color);
   overflow-y: auto;
-  font-size: calc(0.85rem * var(--ui-scale));
 }
 
 .panel-section h3 {
-  font-size: calc(0.85rem * var(--ui-scale));
+  font-size: 0.85rem;
   margin-bottom: 10px;
   display: flex;
   justify-content: space-between;
@@ -523,7 +520,7 @@ svg path.drag-line {
   padding: 2px 6px;
   border-radius: 3px;
   flex: 1;
-  font-size: calc(0.8rem * var(--ui-scale));
+  font-size: 0.8rem;
   -webkit-appearance: none;
   appearance: none;
 }
@@ -534,7 +531,7 @@ svg path.drag-line {
 
 .field label {
   display: block;
-  font-size: calc(0.72rem * var(--ui-scale));
+  font-size: 0.72rem;
   color: var(--text-muted);
   margin-bottom: 4px;
 }
@@ -546,7 +543,7 @@ svg path.drag-line {
   color: var(--text-main);
   padding: 6px;
   border-radius: 4px;
-  font-size: calc(0.8rem * var(--ui-scale));
+  font-size: 0.8rem;
   -webkit-appearance: none;
   appearance: none;
 }
@@ -593,12 +590,12 @@ svg path.drag-line {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: calc(20px * var(--ui-scale));
+  padding: 20px;
   border-bottom: 1px solid var(--border-color);
 }
 
 .modal-header h2 {
-  font-size: calc(1.2rem * var(--ui-scale));
+  font-size: 1.2rem;
   margin: 0;
 }
 
@@ -621,7 +618,7 @@ svg path.drag-line {
 }
 
 .modal-body {
-  padding: calc(20px * var(--ui-scale));
+  padding: 20px;
 }
 
 .settings-section {
@@ -629,7 +626,7 @@ svg path.drag-line {
 }
 
 .settings-section h3 {
-  font-size: calc(0.95rem * var(--ui-scale));
+  font-size: 0.95rem;
   margin-bottom: 12px;
   color: var(--text-main);
 }
@@ -645,7 +642,7 @@ svg path.drag-line {
   text-align: center;
   border: 2px solid var(--border-color);
   border-radius: 6px;
-  font-size: calc(0.85rem * var(--ui-scale));
+  font-size: 0.85rem;
   transition: all 0.2s ease;
   cursor: pointer;
 }
@@ -661,21 +658,6 @@ svg path.drag-line {
   color: var(--accent-blue);
 }
 
-.slider-container {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.slider-container label {
-  font-size: calc(0.9rem * var(--ui-scale));
-}
-
-input[type="range"] {
-  width: 100%;
-  accent-color: var(--accent-blue);
-}
-
 .setting-item {
   display: flex;
   justify-content: space-between;
@@ -684,7 +666,7 @@ input[type="range"] {
 }
 
 .setting-item label {
-  font-size: calc(0.9rem * var(--ui-scale));
+  font-size: 0.9rem;
   color: var(--text-main);
 }
 
@@ -696,18 +678,18 @@ input[type="range"] {
 }
 
 @media (max-width: 768px) {
-  #sidebar {
+  aside {
     position: absolute;
     right: 0;
-    width: 280px;
+    width: 0;
     height: 100%;
     border-left: 1px solid var(--border-color);
   }
 
-  #sidebar.collapsed {
-    width: 0;
-    opacity: 0;
-    margin-right: 0;
+  aside.expanded {
+    width: 100%;
+    max-width: 280px;
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);
   }
   
   .toolbar-section {
