@@ -26,7 +26,6 @@ const GRID_SIZE = 28;
 
 let viewport, canvas, svgLayer, dragLine, searchInput, searchDropdown, layersListEl, projectNameInput, sidebarPanel;
 
-// Performance optimization: RAF throttling for drag operations
 let rafId = null;
 let lastPointerPos = { x: 0, y: 0 };
 let touchStartDist = 0;
@@ -42,7 +41,6 @@ function init() {
   projectNameInput = document.getElementById('project-name');
   sidebarPanel = document.getElementById('sidebar-panel');
 
-  // Load saved settings
   const savedTheme = localStorage.getItem('nodelab-theme') || 'dark';
   setTheme(savedTheme);
 
@@ -70,7 +68,6 @@ function init() {
   updateSidebarVisibility();
 }
 
-// --- Theme & Settings Management ---
 function setTheme(themeName) {
   currentTheme = themeName;
   document.documentElement.setAttribute('data-theme', themeName);
@@ -88,7 +85,6 @@ function openSettings() {
   const modal = document.getElementById('settings-modal');
   modal.classList.add('active');
   
-  // Sync settings UI controls
   document.getElementById('setting-grid').checked = snapToGrid;
   document.getElementById('setting-sidebar').checked = alwaysShowSidebar;
 }
@@ -135,13 +131,12 @@ function updateSidebarVisibility() {
   }
 }
 
-// Close settings modal on backdrop click
 window.addEventListener('click', (e) => {
   const modal = document.getElementById('settings-modal');
   if (e.target === modal) closeSettings();
 });
 
-// --- Unified Pointer Control & Connection Drag Fix ---
+// --- Pointer & Viewport Control Engine ---
 function setupPointerControls() {
   viewport.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -186,7 +181,6 @@ function setupPointerControls() {
     }
   });
 
-  // Release handler: clears drag line or connects if released over a valid target port
   viewport.addEventListener('pointerup', (e) => {
     if (rafId) {
       cancelAnimationFrame(rafId);
@@ -196,7 +190,6 @@ function setupPointerControls() {
     isPanning = false;
     viewport.style.cursor = 'grab';
     
-    // Connection drop fix
     if (connectingPort) {
       const targetPortEl = document.elementFromPoint(e.clientX, e.clientY)?.closest('.port');
       if (targetPortEl) {
@@ -213,7 +206,6 @@ function setupPointerControls() {
         }
       }
       
-      // Reset connection line state on release
       connectingPort = null;
       dragLine.style.display = 'none';
       dragLine.setAttribute('d', '');
@@ -336,8 +328,6 @@ function handlePointerMove(e) {
 
 function applyTransform() {
   canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-  
-  // Set zoom custom property for scale-independent vector/border sharpness
   canvas.style.setProperty('--zoom-scale', scale);
 
   const scaledGridSize = GRID_SIZE * scale;
@@ -457,7 +447,7 @@ function updateBackdropDOM(bd) {
   }
 }
 
-// --- Nodes Management & Dynamic Height Resizing ---
+// --- Nodes Management ---
 function createNode(type, layerId, x, y, color, inPorts = 1, outPorts = 1) {
   const autoH = Math.max(110, Math.max(inPorts, outPorts) * 28 + 50);
   createNodeWithId('node_' + Date.now(), type, layerId, x, y, color, inPorts, outPorts, 220, autoH);
@@ -474,7 +464,7 @@ function createNodeWithId(id, type, layerId, x, y, color, inPorts = 1, outPorts 
     inPorts: inPorts !== undefined ? parseInt(inPorts) : 1, 
     outPorts: outPorts !== undefined ? parseInt(outPorts) : 1,
     starred: false, highlighted: false,
-    scaleLocked: false, // Lock size flag (off by default)
+    scaleLocked: false,
     ip: '192.168.1.' + Math.floor(Math.random() * 200 + 10)
   };
 
@@ -597,7 +587,7 @@ function selectConnection(id) {
   updateSidebarVisibility();
 }
 
-// --- Connections Engine ---
+// --- Connections & Flow Animations Engine ---
 function createConnection(fromId, fromIdx, toId, toIdx) {
   const exists = connections.some(c => c.from === fromId && c.fromIdx === fromIdx && c.to === toId && c.toIdx === toIdx);
   if (exists) return;
@@ -647,15 +637,22 @@ function updateConnections() {
       g.setAttribute('id', conn.id);
       g.setAttribute('class', `connector-group ${selectedConnId === conn.id ? 'selected' : ''}`);
 
+      // Transparent hit target
       const pathBg = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       pathBg.setAttribute('class', 'connector-bg');
 
+      // Base colored cable path
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.setAttribute('class', 'connector-path');
       path.setAttribute('stroke', fromNode.color || '#00e5ff');
 
+      // Animated white dashed flow overlay line
+      const pathFlow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      pathFlow.setAttribute('class', 'connector-flow');
+
       g.appendChild(pathBg);
       g.appendChild(path);
+      g.appendChild(pathFlow);
 
       g.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
@@ -670,6 +667,7 @@ function updateConnections() {
     paths[0].setAttribute('d', pathD);
     paths[1].setAttribute('d', pathD);
     paths[1].setAttribute('stroke', fromNode.color || '#00e5ff');
+    paths[2].setAttribute('d', pathD);
 
     existingGroups.add(conn.id);
   });
@@ -679,7 +677,7 @@ function updateConnections() {
   });
 }
 
-// --- Dynamic Inspector Panel ---
+// --- Inspector Panel ---
 function renderInspector() {
   const container = document.getElementById('inspector-content');
   
@@ -754,13 +752,11 @@ function updateNodeProp(prop, val) {
   }
 }
 
-// Resizes node up AND down when ports change (unless size scale is locked)
 function updateNodePorts(prop, val) {
   const node = nodes.find(n => n.id === selectedNodeId);
   if (node) {
     node[prop] = Math.max(0, parseInt(val) || 0);
     
-    // Dynamically adjust height if size scale is unlocked
     if (!node.scaleLocked) {
       const targetH = Math.max(110, Math.max(node.inPorts, node.outPorts) * 28 + 50);
       node.h = targetH;
@@ -864,7 +860,7 @@ function clearCanvas() {
   }
 }
 
-// --- Save & Load System ---
+// --- Save & Load ---
 function exportJSON() {
   const data = {
     projectName: projectNameInput.value,
@@ -926,7 +922,6 @@ function handleFileSelect(evt) {
   evt.target.value = '';
 }
 
-// --- Global Keybinds ---
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Delete' || e.key === 'Backspace') {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
