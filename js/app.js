@@ -24,6 +24,7 @@ let snapToGrid = true;
 const GRID_SIZE = 28;
 
 let viewport, canvas, svgLayer, dragLine, searchInput, searchDropdown, layersListEl, projectNameInput;
+let lastTouchDistance = 0;
 
 function init() {
   viewport = document.getElementById('viewport');
@@ -41,6 +42,7 @@ function init() {
   renderLayers();
   setupSearch();
   setupViewportControls();
+  setupTouchControls();
   
   addBackdrop('Audio Rack Group', 100, 100, 420, 260, '#9d4edd');
   
@@ -64,6 +66,72 @@ function toggleTheme() {
   document.getElementById('btn-theme').innerText = currentTheme === 'dark' ? '☀️ Light' : '🌙 Dark';
 }
 
+function setupTouchControls() {
+  // Touch support for pan and zoom
+  viewport.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      // Single touch - treat as pan or drag
+      const touch = e.touches[0];
+      const target = document.elementFromPoint(touch.clientX, touch.clientY);
+      
+      if (target?.closest('.node')) {
+        // Node dragging handled in node mousedown
+        return;
+      }
+      
+      if (target?.closest('.port')) {
+        // Port connection handled separately
+        return;
+      }
+      
+      // Pan with single touch
+      isPanning = true;
+    } else if (e.touches.length === 2) {
+      // Two-finger pinch to zoom
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastTouchDistance = Math.sqrt(dx * dx + dy * dy);
+    }
+  }, { passive: false });
+
+  viewport.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 1 && isPanning) {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const dx = touch.clientX - (touch.previousClientX || touch.clientX);
+      const dy = touch.clientY - (touch.previousClientY || touch.clientY);
+      panX += dx;
+      panY += dy;
+      applyTransform();
+    } else if (e.touches.length === 2) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (lastTouchDistance > 0) {
+        const delta = (distance - lastTouchDistance) * 0.01;
+        let newScale = Math.min(Math.max(0.25, scale + delta), 2.5);
+        
+        const rect = viewport.getBoundingClientRect();
+        const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+        const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+        
+        panX = centerX - (centerX - panX) * (newScale / scale);
+        panY = centerY - (centerY - panY) * (newScale / scale);
+        scale = newScale;
+        applyTransform();
+      }
+      lastTouchDistance = distance;
+    }
+  }, { passive: false });
+
+  viewport.addEventListener('touchend', () => {
+    isPanning = false;
+    lastTouchDistance = 0;
+  }, { passive: false });
+}
+
 function setupViewportControls() {
   viewport.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -80,6 +148,7 @@ function setupViewportControls() {
   }, { passive: false });
 
   viewport.addEventListener('mousedown', (e) => {
+    // Support trackpad drag: left-click anywhere on viewport or middle-click
     if (e.button === 1 || (e.button === 0 && e.target === viewport)) {
       isPanning = true;
       viewport.style.cursor = 'grabbing';
@@ -510,12 +579,14 @@ function selectNode(id) {
   selectedNodeId = id;
   document.getElementById(id)?.classList.add('selected');
   renderInspector();
+  toggleInspectorPanel(true);
 }
 
 function selectBackdrop(id) {
   deselectAll();
   selectedBackdropId = id;
   renderInspector();
+  toggleInspectorPanel(true);
 }
 
 function selectConnection(id) {
@@ -523,6 +594,16 @@ function selectConnection(id) {
   selectedConnId = id;
   updateConnections();
   renderInspector();
+  toggleInspectorPanel(true);
+}
+
+function toggleInspectorPanel(show) {
+  const aside = document.querySelector('aside');
+  if (show) {
+    aside.classList.add('expanded');
+  } else {
+    aside.classList.remove('expanded');
+  }
 }
 
 function renderInspector() {
@@ -610,7 +691,8 @@ function updateNodeProp(id, prop, val) {
   node[prop] = val;
 
   if (prop === 'inPorts' || prop === 'outPorts') {
-    const requiredH = Math.max(node.h, Math.max(node.inPorts, node.outPorts) * 28 + 50);
+    // Scale height based on port count - grow OR shrink
+    const requiredH = Math.max(110, Math.max(node.inPorts, node.outPorts) * 28 + 50);
     node.h = requiredH;
   }
 
