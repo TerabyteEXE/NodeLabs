@@ -51,6 +51,10 @@ function init() {
   layersListEl = document.getElementById('layers-list');
   projectNameInput = document.getElementById('project-name');
 
+  // Load saved theme
+  const savedTheme = localStorage.getItem('nodelab-theme') || 'dark';
+  setTheme(savedTheme);
+
   // Immediately render background dots and scale positioning on startup
   applyTransform();
 
@@ -73,14 +77,47 @@ function init() {
   });
 }
 
-// --- Theme & Viewport Controls ---
-function toggleTheme() {
-  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', currentTheme);
-  document.getElementById('btn-theme').innerText = currentTheme === 'dark' ? '☀️ Light' : '🌙 Dark';
+// --- Theme & Settings ---
+function setTheme(themeName) {
+  currentTheme = themeName;
+  document.documentElement.setAttribute('data-theme', themeName);
+  localStorage.setItem('nodelab-theme', themeName);
+  
+  // Update active theme button
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.dataset.theme === themeName) {
+      btn.classList.add('active');
+    }
+  });
 }
 
-// Unified PointerEvents API for mouse, trackpad, and touch
+function openSettings() {
+  const modal = document.getElementById('settings-modal');
+  modal.classList.add('active');
+  
+  // Update grid checkbox
+  document.getElementById('setting-grid').checked = snapToGrid;
+}
+
+function closeSettings() {
+  const modal = document.getElementById('settings-modal');
+  modal.classList.remove('active');
+}
+
+function updateGridSetting() {
+  snapToGrid = document.getElementById('setting-grid').checked;
+}
+
+// Close modal when clicking outside
+window.addEventListener('click', (e) => {
+  const modal = document.getElementById('settings-modal');
+  if (e.target === modal) {
+    closeSettings();
+  }
+});
+
+// --- Unified PointerEvents API for mouse, trackpad, and touch ---
 function setupPointerControls() {
   // Wheel zoom (mouse wheel + trackpad pinch zoom)
   viewport.addEventListener('wheel', (e) => {
@@ -99,8 +136,12 @@ function setupPointerControls() {
 
   // Pointer down - unified mouse/touch/pen handling
   viewport.addEventListener('pointerdown', (e) => {
+    // Check if clicking on canvas itself (not on elements)
+    if (e.target !== viewport && e.target !== canvas && !e.target.closest('.node, .port, .backdrop, .backdrop-header, .node-header, .backdrop-resize, .node-resize')) {
+      return;
+    }
+    
     if (e.pointerType === 'touch') {
-      // Touch: check if it's on a node/port
       const target = e.target.closest('.node, .port, .backdrop, .backdrop-header, .node-header, .backdrop-resize, .node-resize');
       if (target) {
         return; // Let node/backdrop handlers take over
@@ -110,7 +151,7 @@ function setupPointerControls() {
       lastPointerPos = { x: e.clientX, y: e.clientY };
     } else if (e.pointerType === 'mouse') {
       // Mouse: left-click on viewport or middle-click for pan
-      if (e.button === 1 || (e.button === 0 && e.target === viewport)) {
+      if (e.button === 1 || (e.button === 0 && (e.target === viewport || e.target === canvas))) {
         isPanning = true;
         viewport.style.cursor = 'grabbing';
         deselectAll();
@@ -267,8 +308,10 @@ function handlePointerMove(e) {
 
 function applyTransform() {
   canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+  // Scale grid dots with zoom level
+  const scaledGridSize = GRID_SIZE * scale;
+  viewport.style.backgroundSize = `${scaledGridSize}px ${scaledGridSize}px`;
   viewport.style.backgroundPosition = `${panX}px ${panY}px`;
-  viewport.style.backgroundSize = `${GRID_SIZE * scale}px ${GRID_SIZE * scale}px`;
 }
 
 function resetView() {

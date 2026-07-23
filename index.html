@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Node Labs | TerabyteEXE</title>
   
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231e1e2e'/><text x='50%' y='55%' dominant-baseline='central' text-anchor='middle' fill='%2389b4fa' font-family='sans-serif' font-weight='bold' font-size='50'>NL</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231e1e2e'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='middle' font-weight='bold'>⬡</text></svg>">
 
   <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -30,13 +30,12 @@
       </div>
     </div>
 
-    <div class="toolbar-section">
+    <div class="toolbar-section" style="margin-left: auto;">
       <div class="btn-group">
         <button onclick="exportJSON()">💾 Save</button>
         <button onclick="importJSON()">📂 Open</button>
-        <button id="btn-theme" onclick="toggleTheme()">☀️ Light</button>
         <button onclick="resetView()">🎯 Center</button>
-        <button onclick="clearCanvas()" style="color: var(--accent-pink);">Clear</button>
+        <button onclick="openSettings()">⚙️ Settings</button>
       </div>
     </div>
   </header>
@@ -65,6 +64,39 @@
         </div>
       </div>
     </aside>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button class="modal-close" onclick="closeSettings()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-section">
+          <h3>Theme</h3>
+          <div class="theme-grid">
+            <button class="theme-btn active" data-theme="dark" onclick="setTheme('dark')">🌙 Dark</button>
+            <button class="theme-btn" data-theme="light" onclick="setTheme('light')">☀️ Light</button>
+            <button class="theme-btn" data-theme="grey" onclick="setTheme('grey')">🩶 Grey</button>
+            <button class="theme-btn" data-theme="vaporwave" onclick="setTheme('vaporwave')">🌌 Vaporwave</button>
+            <button class="theme-btn" data-theme="forest" onclick="setTheme('forest')">🌲 Forest</button>
+            <button class="theme-btn" data-theme="sunset" onclick="setTheme('sunset')">🌅 Sunset</button>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>Canvas</h3>
+          <div class="setting-item">
+            <label>Grid Snap</label>
+            <input type="checkbox" id="setting-grid" onchange="updateGridSetting()">
+          </div>
+        </div>
+        <div class="settings-section">
+          <button onclick="clearCanvas()" style="width: 100%; margin-top: 16px; border-color: var(--accent-pink); color: var(--accent-pink);">Clear Canvas</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <input type="file" id="file-input" accept=".json" onchange="handleFileSelect(event)">
