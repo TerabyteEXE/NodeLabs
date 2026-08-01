@@ -1,4 +1,4 @@
-html_content = """<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
@@ -10,7 +10,6 @@ html_content = """<!DOCTYPE html>
   <link rel="stylesheet" href="css/styles.css">
   
   <style>
-    /* Override the 100vh lock from the editor's body styling */
     body {
       height: auto !important;
       overflow-y: auto !important;
@@ -18,19 +17,16 @@ html_content = """<!DOCTYPE html>
       line-height: 1.6;
     }
 
-    /* Container for content */
     .container {
       max-width: 960px;
       margin: 0 auto;
       padding: 40px 20px;
     }
 
-    /* Hero Section */
     .hero {
       text-align: center;
       padding: 100px 20px 80px;
       border-bottom: 1px solid var(--border-color);
-      /* Use the grid variables from styles.css for a cool background */
       background-color: var(--bg-main);
       background-image: radial-gradient(var(--grid-dot) 1.5px, transparent 1.5px);
       background-size: 28px 28px;
@@ -55,7 +51,7 @@ html_content = """<!DOCTYPE html>
 
     .btn-primary {
       background-color: var(--accent-blue);
-      color: #000; /* Contrast for the primary button */
+      color: #000;
       border: 1px solid var(--accent-blue);
       padding: 14px 32px;
       font-size: 1.1rem;
@@ -73,7 +69,6 @@ html_content = """<!DOCTYPE html>
       filter: brightness(1.1);
     }
 
-    /* Badges */
     .badge-container {
       display: flex;
       gap: 10px;
@@ -86,7 +81,6 @@ html_content = """<!DOCTYPE html>
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
-    /* Typography & Sections */
     section {
       margin: 80px 0;
     }
@@ -119,7 +113,6 @@ html_content = """<!DOCTYPE html>
       font-size: 1.1rem;
     }
 
-    /* Features Grid */
     .features-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -153,7 +146,6 @@ html_content = """<!DOCTYPE html>
       line-height: 1.5;
     }
 
-    /* Code Blocks */
     pre {
       background-color: var(--bg-panel);
       border: 1px solid var(--border-color);
@@ -167,7 +159,6 @@ html_content = """<!DOCTYPE html>
       box-shadow: inset 0 2px 8px rgba(0,0,0,0.1);
     }
 
-    /* Footer */
     footer {
       text-align: center;
       padding: 40px 20px;
@@ -179,14 +170,17 @@ html_content = """<!DOCTYPE html>
   </style>
 
   <script>
-    // Immediately apply the theme from localStorage before render to avoid flashing
     (function() {
       try {
-        // App.js usually saves themes under a specific key, we check common ones
-        const savedTheme = localStorage.getItem('nodeLabsTheme') || localStorage.getItem('theme') || 'dark';
+        // Reads the exact theme key used by app.js (e.g. 'nodeLabsTheme')
+        // If it's explicitly 'light' or missing, defaults to a dark fallback theme ('dark')
+        let savedTheme = localStorage.getItem('nodeLabsTheme');
+        if (!savedTheme || savedTheme === 'light') {
+          savedTheme = 'dark';
+        }
         document.documentElement.setAttribute('data-theme', savedTheme);
       } catch (e) {
-        console.warn("Could not load theme from localStorage", e);
+        document.documentElement.setAttribute('data-theme', 'dark');
       }
     })();
   </script>
@@ -289,9 +283,4 @@ html_content = """<!DOCTYPE html>
   </footer>
 
 </body>
-</html>"""
-
-with open('/mnt/data/webpage.html', 'w', encoding='utf-8') as f:
-    f.write(html_content)
-    
-print("File generated successfully.")
+</html>
