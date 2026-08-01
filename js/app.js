@@ -107,6 +107,21 @@ function scheduleAutosave() {
   autosaveDebounceTimer = setTimeout(saveProjectState, 350);
 }
 
+function flushAutosave() {
+  clearTimeout(autosaveDebounceTimer);
+  saveProjectState();
+}
+
+// A pending debounced autosave can be lost if the page reloads/closes
+// before the timer fires. Flush immediately whenever the page is about
+// to go away or is backgrounded (beforeunload is unreliable on mobile
+// Safari, so visibilitychange/pagehide cover that case too).
+window.addEventListener('beforeunload', flushAutosave);
+window.addEventListener('pagehide', flushAutosave);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushAutosave();
+});
+
 function applyProjectState(data) {
   nodes = []; backdrops = []; connections = [];
   document.querySelectorAll('.node, .backdrop').forEach(el => el.remove());
