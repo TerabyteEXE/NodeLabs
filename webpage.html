@@ -1,0 +1,297 @@
+html_content = """<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Node Labs | Home</title>
+  
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231e1e2e'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='middle' font-weight='bold'>⬡</text></svg>">
+  
+  <link rel="stylesheet" href="css/styles.css">
+  
+  <style>
+    /* Override the 100vh lock from the editor's body styling */
+    body {
+      height: auto !important;
+      overflow-y: auto !important;
+      display: block !important;
+      line-height: 1.6;
+    }
+
+    /* Container for content */
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      padding: 100px 20px 80px;
+      border-bottom: 1px solid var(--border-color);
+      /* Use the grid variables from styles.css for a cool background */
+      background-color: var(--bg-main);
+      background-image: radial-gradient(var(--grid-dot) 1.5px, transparent 1.5px);
+      background-size: 28px 28px;
+    }
+
+    .hero h1 {
+      font-size: 3.5rem;
+      color: var(--accent-blue);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .hero p {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      max-width: 650px;
+      margin: 0 auto 32px;
+    }
+
+    .btn-primary {
+      background-color: var(--accent-blue);
+      color: #000; /* Contrast for the primary button */
+      border: 1px solid var(--accent-blue);
+      padding: 14px 32px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      border-radius: 8px;
+      text-decoration: none;
+      display: inline-block;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+      filter: brightness(1.1);
+    }
+
+    /* Badges */
+    .badge-container {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+    
+    .badge-container img {
+      border-radius: 4px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    /* Typography & Sections */
+    section {
+      margin: 80px 0;
+    }
+
+    h2 {
+      color: var(--text-main);
+      margin-bottom: 24px;
+      font-size: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    h2::before {
+      content: '⬡';
+      color: var(--accent-pink);
+      font-size: 1.5rem;
+    }
+
+    p.lead {
+      color: var(--text-main);
+      font-size: 1.15rem;
+      margin-bottom: 16px;
+    }
+
+    p.sub-lead {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+    }
+
+    /* Features Grid */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+      margin-top: 32px;
+    }
+
+    .feature-card {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      transition: transform 0.2s, border-color 0.2s;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .feature-card:hover {
+      border-color: var(--accent-blue);
+      transform: translateY(-2px);
+    }
+
+    .feature-card h3 {
+      color: var(--accent-blue);
+      margin-bottom: 12px;
+      font-size: 1.2rem;
+    }
+
+    .feature-card p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    /* Code Blocks */
+    pre {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      padding: 24px;
+      border-radius: 12px;
+      overflow-x: auto;
+      color: var(--text-main);
+      font-family: monospace;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 40px 20px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-top: 40px;
+    }
+  </style>
+
+  <script>
+    // Immediately apply the theme from localStorage before render to avoid flashing
+    (function() {
+      try {
+        // App.js usually saves themes under a specific key, we check common ones
+        const savedTheme = localStorage.getItem('nodeLabsTheme') || localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      } catch (e) {
+        console.warn("Could not load theme from localStorage", e);
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <header style="position: sticky; top: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+    <div class="brand">
+      <span style="font-size: 1.2rem;">⬡</span>
+      Node Labs
+    </div>
+    
+    <div class="toolbar-section" style="margin-left: auto;">
+      <a href="index.html" style="text-decoration: none;">
+        <button class="active" style="padding: 6px 16px; font-weight: 600;">Launch Editor</button>
+      </a>
+    </div>
+  </header>
+
+  <div class="hero">
+    <h1><span style="font-size: 3.5rem;">⬡</span> Node Labs</h1>
+    
+    <div class="badge-container">
+      <img src="https://img.shields.io/badge/version-1.2.3-blue.svg" alt="Version">
+      <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
+      <img src="https://img.shields.io/badge/Hosted%20on-GitHub%20Pages-blue" alt="Hosted">
+    </div>
+    
+    <p>Modular, node-based diagramming and schematic visualizer for A/V systems and production setups.</p>
+    
+    <a href="index.html" class="btn-primary">Try It Out</a>
+  </div>
+
+  <div class="container">
+    
+    <section>
+      <h2>Overview</h2>
+      <p class="lead">
+        <strong>Node Labs</strong> is an open-source, web-based visual mapping tool designed specifically for Audio/Visual (A/V) system mapping. It provides a simple canvas to model complex production studio setups, signals, and rack setups.
+      </p>
+      <p class="sub-lead">
+        Whether you are mapping out an audio mixer setup, tracking IP-based video routing, or troubleshooting your setup, Node Labs simplifies system visualization so you can resolve technical issues quickly.
+      </p>
+    </section>
+
+    <section>
+      <h2>Key Features</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <h3>Node-Based Cable Routing</h3>
+          <p>Connect devices with interactive bezier cable paths and visual signal flow direction (mostly for looks).</p>
+        </div>
+        <div class="feature-card">
+          <h3>Granular Detail & Metadata</h3>
+          <p>Assign custom labels, IP addresses or IDs, port numbers, and custom accent colors to each device.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Custom Backdrop Groups</h3>
+          <p>Organize related equipment into visual zones (e.g., Audio Rack, Master Control Room, Stage Box).</p>
+        </div>
+        <div class="feature-card">
+          <h3>Layer Management</h3>
+          <p>Hide or show entire signal paths (e.g., PC vs. Audio Path) to make it easier to understand.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Modular Node Library</h3>
+          <p>Easily extensible component templates for Switches, Mixers, Monitors, Speakers, Microphones, and PCs.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Light & Dark Themes</h3>
+          <p>Seamless UI theme toggling for low-light control rooms or bright workspace environments.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Local Project Persistence</h3>
+          <p>Save and load your complete schematic diagrams via lightweight JSON project files.</p>
+        </div>
+        <div class="feature-card">
+          <h3>100% Free & Open-Source</h3>
+          <p>No backend required; runs directly in the browser via static hosting (GitHub Pages).</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Repository Structure</h2>
+      <p style="color: var(--text-muted); margin-bottom: 16px;">Structured for simplicity, ensuring easy deployment and modifiability.</p>
+      <pre><code>node-labs/
+├── index.html              # Main HTML markup entry point
+├── css/
+│   └── styles.css          # UI styling, themes, and CSS variables
+└── js/
+    ├── componentLibrary.js # Device templates & library registry
+    └── app.js              # Canvas engine, state management, & cable pathing</code></pre>
+    </section>
+
+  </div>
+
+  <footer>
+    <p>&copy; 2026 TerabyteEXE / Node Labs. Open source under the MIT License.</p>
+  </footer>
+
+</body>
+</html>"""
+
+with open('/mnt/data/webpage.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)
+    
+print("File generated successfully.")
