@@ -1,1 +1,502 @@
 
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Node Labs | Roadmap</title>
+
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231e1e2e'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='middle' font-weight='bold'>⬡</text></svg>">
+
+  <link rel="stylesheet" href="css/styles.css">
+
+  <style>
+    body {
+      height: auto !important;
+      overflow-y: auto !important;
+      display: block !important;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    .hero {
+      text-align: center;
+      padding: 90px 20px 70px;
+      border-bottom: 1px solid var(--border-color);
+      background-color: var(--bg-main);
+      background-image: radial-gradient(var(--grid-dot) 1.5px, transparent 1.5px);
+      background-size: 28px 28px;
+    }
+
+    .hero h1 {
+      font-size: 3rem;
+      color: var(--accent-blue);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .hero p {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 650px;
+      margin: 0 auto;
+    }
+
+    .badge-container {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin: 24px 0 8px;
+    }
+
+    .badge-container img {
+      border-radius: 4px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    footer {
+      text-align: center;
+      padding: 40px 20px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-top: 40px;
+    }
+
+    /* ---------- Timeline ---------- */
+    #timeline {
+      position: relative;
+      margin-top: 20px;
+      padding-left: 36px;
+    }
+
+    #timeline::before {
+      content: '';
+      position: absolute;
+      left: 9px;
+      top: 6px;
+      bottom: 6px;
+      width: 2px;
+      background: var(--border-color);
+    }
+
+    .version-entry {
+      position: relative;
+      margin-bottom: 36px;
+    }
+
+    .version-entry::before {
+      content: '';
+      position: absolute;
+      left: -36px;
+      top: 6px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--bg-panel);
+      border: 2px solid var(--border-color);
+      box-sizing: border-box;
+    }
+
+    .version-entry.status-released::before { border-color: var(--accent-blue); }
+    .version-entry.status-planned::before  { border-color: var(--border-color); }
+
+    .version-entry.status-current::before {
+      border-color: var(--accent-pink);
+      background: var(--accent-pink);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-pink) 25%, transparent);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-pink) 25%, transparent); }
+      50%      { box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent-pink) 12%, transparent); }
+    }
+
+    .version-card {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .version-card:hover {
+      border-color: var(--accent-blue);
+      transform: translateY(-1px);
+    }
+
+    .version-entry.status-current .version-card {
+      border-color: var(--accent-pink);
+    }
+
+    .version-entry.status-planned .version-card {
+      border-style: dashed;
+      box-shadow: none;
+    }
+
+    .version-head {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      margin-bottom: 4px;
+    }
+
+    .version-number {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-main);
+      font-family: monospace;
+    }
+
+    .version-title {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+
+    .version-date {
+      margin-left: auto;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+
+    .status-pill {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 3px 10px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .status-released .status-pill {
+      color: var(--bg-main);
+      background: var(--accent-blue);
+    }
+
+    .status-current .status-pill {
+      color: var(--bg-main);
+      background: var(--accent-pink);
+    }
+
+    .status-planned .status-pill {
+      color: var(--text-muted);
+      background: transparent;
+      border-color: var(--border-color);
+    }
+
+    .version-summary {
+      color: var(--text-main);
+      font-size: 0.95rem;
+      margin: 10px 0 4px;
+    }
+
+    .version-items {
+      list-style: none;
+      margin-top: 10px;
+      padding: 0;
+    }
+
+    .version-items li {
+      position: relative;
+      padding-left: 20px;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .version-items li::before {
+      content: '›';
+      position: absolute;
+      left: 2px;
+      color: var(--accent-blue);
+      font-weight: 700;
+    }
+
+    .status-planned .version-items li::before {
+      color: var(--text-muted);
+    }
+
+    .section-label {
+      color: var(--text-main);
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 56px 0 4px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-label::before {
+      content: '⬡';
+      color: var(--accent-pink);
+      font-size: 1.2rem;
+    }
+
+    .section-sub {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+
+    /* Startup Screen (matches editor/homepage) */
+    #startup-screen {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background-color: var(--bg-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+
+    #startup-screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .startup-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .startup-icon {
+      font-size: 4rem;
+      color: var(--accent-blue);
+      animation: startupScaleRotate 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    .startup-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text-main);
+      opacity: 0;
+      animation: startupFadeIn 0.8s ease 0.4s forwards;
+    }
+
+    @keyframes startupScaleRotate {
+      0% { transform: scale(0.3) rotate(-180deg); opacity: 0; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+
+    @keyframes startupFadeIn {
+      0% { opacity: 0; transform: translateY(10px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    #page-content {
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    body.loaded #page-content {
+      opacity: 1;
+    }
+  </style>
+
+  <script>
+    (function() {
+      try {
+        const savedTheme = localStorage.getItem('nodelab-theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <div id="startup-screen">
+    <div class="startup-logo">
+      <div class="startup-icon">⬡</div>
+      <div class="startup-title">Node Labs</div>
+    </div>
+  </div>
+
+  <div id="page-content">
+    <header style="position: sticky; top: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+      <div class="brand">
+        <span style="font-size: 1.2rem;">⬡</span>
+        Node Labs
+      </div>
+
+      <div class="toolbar-section" style="margin-left: auto;">
+        <div class="btn-group">
+          <a href="webpage.html" style="text-decoration: none;">
+            <button>&larr; Back to Home</button>
+          </a>
+          <a href="index.html" style="text-decoration: none;">
+            <button class="active" style="font-weight: 600;">Launch Editor</button>
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <div class="hero">
+      <h1><span style="font-size: 3rem;">⬡</span> Roadmap</h1>
+      <p>Where Node Labs has been, where it is now, and where it's headed.</p>
+      <div class="badge-container">
+        <img src="https://img.shields.io/badge/version-2.0.0--alpha-blue.svg" alt="Version">
+        <img src="https://img.shields.io/badge/status-beta%20testing-f38ba8" alt="Status">
+      </div>
+    </div>
+
+    <div class="container">
+      <div id="timeline"></div>
+    </div>
+
+    <footer>
+      <p>&copy; 2026 TerabyteEXE / Node Labs. Open source under the MIT License.</p>
+    </footer>
+  </div>
+
+  <!-- ======================================================================
+       ROADMAP DATA
+       This is the only part of the file you should need to touch.
+       Add / edit / remove objects in the ROADMAP array below and the page
+       builds itself — no HTML editing required.
+
+       Fields:
+         version : string, e.g. "1.0.0"
+         status  : "released" | "current" | "planned"
+                     released -> solid blue marker, filled-in history
+                     current  -> pulsing pink marker, use for the version
+                                 you're actively on right now (e.g. beta)
+                     planned  -> dashed outline card, for future ideas
+         title   : short name for the version, e.g. "Initial Concept"
+         date    : e.g. "Jan 2026" or "TBD" — leave "" to hide it
+         summary : (optional) one or two sentence description, or "" to skip
+         items   : array of bullet strings — the changelog / feature list
+  ======================================================================= -->
+  <script>
+    const ROADMAP = [
+      {
+        version: "1.0.0",
+        status: "released",
+        title: "Initial Concept",
+        date: "",
+        summary: "The first working idea of Node Labs — proving out node placement and cable connections on a canvas.",
+        items: [
+          "Add your notes here",
+          "Add your notes here"
+        ]
+      },
+      {
+        version: "1.5.0",
+        status: "released",
+        title: "",
+        date: "",
+        summary: "",
+        items: [
+          "Add your notes here"
+        ]
+      },
+      {
+        version: "1.9.9",
+        status: "current",
+        title: "Public Beta",
+        date: "",
+        summary: "Current build. Open for beta testing — feedback and bug reports are actively shaping the 2.0 release.",
+        items: [
+          "Add your notes here",
+          "Add your notes here"
+        ]
+      },
+
+      // -------- Future / Planned --------
+      {
+        version: "2.0.0",
+        status: "planned",
+        title: "Official Release",
+        date: "TBD",
+        summary: "First stable, non-beta release.",
+        items: [
+          "Add your notes here"
+        ]
+      }
+    ];
+
+    function renderRoadmap() {
+      const el = document.getElementById('timeline');
+      let lastStatus = null;
+      let html = '';
+
+      ROADMAP.forEach(entry => {
+        // Auto-insert a "Planned / Future" section label the first time
+        // we hit a planned entry, so you don't have to manage it by hand.
+        if (entry.status === 'planned' && lastStatus !== 'planned') {
+          html += `
+            <div class="section-label">Planned / Future</div>
+            <p class="section-sub">Not committed to a date yet — subject to change.</p>
+          `;
+        }
+        lastStatus = entry.status;
+
+        const statusLabel = entry.status === 'current' ? 'Current · Beta'
+                           : entry.status === 'planned' ? 'Planned'
+                           : 'Released';
+
+        const itemsHtml = (entry.items || [])
+          .filter(i => i && i.trim().length)
+          .map(i => `<li>${escapeHtml(i)}</li>`)
+          .join('');
+
+        html += `
+          <div class="version-entry status-${entry.status}">
+            <div class="version-card">
+              <div class="version-head">
+                <span class="version-number">v${escapeHtml(entry.version)}</span>
+                ${entry.title ? `<span class="version-title">${escapeHtml(entry.title)}</span>` : ''}
+                <span class="status-pill">${statusLabel}</span>
+                ${entry.date ? `<span class="version-date">${escapeHtml(entry.date)}</span>` : ''}
+              </div>
+              ${entry.summary ? `<p class="version-summary">${escapeHtml(entry.summary)}</p>` : ''}
+              ${itemsHtml ? `<ul class="version-items">${itemsHtml}</ul>` : ''}
+            </div>
+          </div>
+        `;
+      });
+
+      el.innerHTML = html;
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    renderRoadmap();
+  </script>
+
+  <script>
+    window.addEventListener("load", () => {
+        const splash = document.getElementById("startup-screen");
+        setTimeout(() => {
+            splash.classList.add("hidden");
+            document.body.classList.add("loaded");
+        }, 1500);
+    });
+  </script>
+
+</body>
+</html>
