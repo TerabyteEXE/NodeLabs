@@ -23,6 +23,8 @@ let isPanning = false;
 let snapToGrid = true;
 let alwaysShowSidebar = false;
 const GRID_SIZE = 28;
+const AUTOSAVE_KEY = 'nodelab-autosave-v2';
+let autosaveDebounceTimer = null;
 
 let viewport, canvas, svgLayer, dragLine, searchInput, searchDropdown, layersListEl, projectNameInput, sidebarPanel;
 
@@ -46,26 +48,115 @@ function init() {
 
   alwaysShowSidebar = localStorage.getItem('nodelab-always-sidebar') === 'true';
 
-  applyTransform();
-  renderLayers();
   setupSearch();
   setupPointerControls();
-  
-  addBackdrop('Audio Rack Group', 100, 100, 420, 260, '#9d4edd');
-  
-  const node1Id = 'node_init_1';
-  const node2Id = 'node_init_2';
 
-  createNodeWithId(node1Id, 'Network Switch', layers[0].id, 140, 150, '#00e5ff', 2, 2, 220, 120);
-  createNodeWithId(node2Id, 'Audio Mixer', layers[1].id, 460, 150, '#9d4edd', 4, 4, 240, 180);
-  
-  createConnection(node1Id, 0, node2Id, 0);
+  projectNameInput.addEventListener('input', () => scheduleAutosave());
+
+  const restored = loadAutosave();
+
+  if (!restored) {
+    // First-time visitor / nothing saved yet: seed the default demo setup.
+    addBackdrop('Audio Rack Group', 100, 100, 420, 260, '#9d4edd');
+
+    const node1Id = 'node_init_1';
+    const node2Id = 'node_init_2';
+
+    createNodeWithId(node1Id, 'Network Switch', layers[0].id, 140, 150, '#00e5ff', 2, 2, 220, 120);
+    createNodeWithId(node2Id, 'Audio Mixer', layers[1].id, 460, 150, '#9d4edd', 4, 4, 240, 180);
+
+    createConnection(node1Id, 0, node2Id, 0);
+    deselectAll();
+  }
+
+  applyTransform();
+  renderLayers();
 
   requestAnimationFrame(() => {
     updateConnections();
   });
 
   updateSidebarVisibility();
+
+  if (!restored) scheduleAutosave();
+}
+
+// --- Autosave / Restore (keeps the canvas exactly as you left it on reload) ---
+function collectProjectState() {
+  return {
+    version: '2.0.0',
+    projectName: projectNameInput ? projectNameInput.value : 'Untitled Project',
+    layers, backdrops, nodes, connections,
+    viewport: { scale, panX, panY },
+    snapToGrid, alwaysShowSidebar
+  };
+}
+
+function saveProjectState() {
+  try {
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(collectProjectState()));
+  } catch (err) {
+    // Storage full or unavailable (e.g. private browsing) - fail silently,
+    // the user can still manually export/save their project as JSON.
+    console.warn('Node Labs: could not autosave project.', err);
+  }
+}
+
+function scheduleAutosave() {
+  clearTimeout(autosaveDebounceTimer);
+  autosaveDebounceTimer = setTimeout(saveProjectState, 350);
+}
+
+function applyProjectState(data) {
+  nodes = []; backdrops = []; connections = [];
+  document.querySelectorAll('.node, .backdrop').forEach(el => el.remove());
+
+  if (data.projectName && projectNameInput) projectNameInput.value = data.projectName;
+  layers = data.layers && data.layers.length ? data.layers : layers;
+  backdrops = data.backdrops || [];
+  nodes = data.nodes || [];
+  connections = data.connections || [];
+
+  if (typeof data.snapToGrid === 'boolean') {
+    snapToGrid = data.snapToGrid;
+    syncGridUI();
+  }
+  if (typeof data.alwaysShowSidebar === 'boolean') {
+    alwaysShowSidebar = data.alwaysShowSidebar;
+  }
+
+  if (data.viewport) {
+    scale = data.viewport.scale || 1;
+    panX = data.viewport.panX || 0;
+    panY = data.viewport.panY || 0;
+  }
+  applyTransform();
+
+  renderLayers();
+  backdrops.forEach(bd => renderBackdropToDOM(bd));
+  nodes.forEach(node => renderNodeToDOM(node));
+
+  requestAnimationFrame(() => updateConnections());
+  deselectAll();
+}
+
+function loadAutosave() {
+  let raw;
+  try {
+    raw = localStorage.getItem(AUTOSAVE_KEY);
+  } catch (err) {
+    return false;
+  }
+  if (!raw) return false;
+
+  try {
+    const data = JSON.parse(raw);
+    applyProjectState(data);
+    return true;
+  } catch (err) {
+    console.warn('Node Labs: saved project data was corrupted, starting fresh.', err);
+    return false;
+  }
 }
 
 function setTheme(themeName) {
@@ -97,11 +188,13 @@ function closeSettings() {
 function updateGridSetting() {
   snapToGrid = document.getElementById('setting-grid').checked;
   syncGridUI();
+  scheduleAutosave();
 }
 
 function toggleGrid() {
   snapToGrid = !snapToGrid;
   syncGridUI();
+  scheduleAutosave();
 }
 
 function syncGridUI() {
@@ -118,6 +211,7 @@ function updateSidebarSetting() {
   alwaysShowSidebar = document.getElementById('setting-sidebar').checked;
   localStorage.setItem('nodelab-always-sidebar', alwaysShowSidebar);
   updateSidebarVisibility();
+  scheduleAutosave();
 }
 
 function updateSidebarVisibility() {
@@ -220,6 +314,8 @@ function setupPointerControls() {
         updateConnections();
       }
     }
+
+    scheduleAutosave();
 
     dragNodeId = null;
     dragBackdrop = null;
@@ -326,6 +422,15 @@ function handlePointerMove(e) {
   }
 }
 
+let transformSettleTimer = null;
+function markTransforming() {
+  canvas.classList.add('is-transforming');
+  clearTimeout(transformSettleTimer);
+  transformSettleTimer = setTimeout(() => {
+    canvas.classList.remove('is-transforming');
+  }, 180);
+}
+
 function applyTransform() {
   canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
   canvas.style.setProperty('--zoom-scale', scale);
@@ -333,6 +438,8 @@ function applyTransform() {
   const scaledGridSize = GRID_SIZE * scale;
   viewport.style.backgroundSize = `${scaledGridSize}px ${scaledGridSize}px`;
   viewport.style.backgroundPosition = `${panX}px ${panY}px`;
+
+  markTransforming();
 }
 
 function resetView() {
@@ -409,6 +516,7 @@ function addBackdrop(title = 'System Zone', x = 200, y = 200, w = 300, h = 200, 
   backdrops.push(bd);
   renderBackdropToDOM(bd);
   selectBackdrop(id);
+  scheduleAutosave();
 }
 
 function renderBackdropToDOM(bd) {
@@ -471,10 +579,12 @@ function createNodeWithId(id, type, layerId, x, y, color, inPorts = 1, outPorts 
   nodes.push(node);
   renderNodeToDOM(node);
   selectNode(id);
+  scheduleAutosave();
 }
 
 function renderNodeToDOM(node) {
   let el = document.getElementById(node.id);
+  const isNewEl = !el;
   if (!el) {
     el = document.createElement('div');
     el.id = node.id;
@@ -522,7 +632,9 @@ function renderNodeToDOM(node) {
     e.stopPropagation();
   });
 
-  el.addEventListener('pointerdown', () => selectNode(node.id));
+  if (isNewEl) {
+    el.addEventListener('pointerdown', () => selectNode(node.id));
+  }
 
   el.querySelectorAll('.port').forEach(port => {
     port.addEventListener('pointerdown', (e) => {
@@ -595,6 +707,7 @@ function createConnection(fromId, fromIdx, toId, toIdx) {
   const conn = { id: 'conn_' + Date.now(), from: fromId, fromIdx, to: toId, toIdx };
   connections.push(conn);
   updateConnections();
+  scheduleAutosave();
 }
 
 function updateConnections() {
@@ -749,6 +862,7 @@ function updateNodeProp(prop, val) {
     node[prop] = val;
     renderNodeToDOM(node);
     updateConnections();
+    scheduleAutosave();
   }
 }
 
@@ -764,6 +878,7 @@ function updateNodePorts(prop, val) {
 
     renderNodeToDOM(node);
     updateConnections();
+    scheduleAutosave();
   }
 }
 
@@ -772,6 +887,7 @@ function updateBackdropProp(prop, val) {
   if (bd) {
     bd[prop] = val;
     updateBackdropDOM(bd);
+    scheduleAutosave();
   }
 }
 
@@ -783,6 +899,7 @@ function deleteSelectedNode() {
   if (el) el.remove();
   deselectAll();
   updateConnections();
+  scheduleAutosave();
 }
 
 function deleteSelectedBackdrop() {
@@ -791,6 +908,7 @@ function deleteSelectedBackdrop() {
   const el = document.getElementById(selectedBackdropId);
   if (el) el.remove();
   deselectAll();
+  scheduleAutosave();
 }
 
 function deleteSelectedConnection() {
@@ -800,6 +918,7 @@ function deleteSelectedConnection() {
   if (el) el.remove();
   deselectAll();
   updateConnections();
+  scheduleAutosave();
 }
 
 // --- Layers Management ---
@@ -817,6 +936,7 @@ function renderLayers() {
       layer.visible = !layer.visible;
       renderLayers();
       refreshVisibility();
+      scheduleAutosave();
     });
     layersListEl.appendChild(item);
   });
@@ -827,6 +947,7 @@ function addLayer() {
   if (!name) return;
   layers.push({ id: 'layer_' + Date.now(), name, visible: true });
   renderLayers();
+  scheduleAutosave();
 }
 
 function refreshVisibility() {
@@ -857,6 +978,7 @@ function clearCanvas() {
     dragLine = document.getElementById('drag-line');
     deselectAll();
     closeSettings();
+    scheduleAutosave();
   }
 }
 
@@ -864,9 +986,10 @@ function clearCanvas() {
 function exportJSON() {
   const data = {
     projectName: projectNameInput.value,
-    version: '1.2.0',
+    version: '2.0.0',
     layers, backdrops, nodes, connections,
-    viewport: { scale, panX, panY }
+    viewport: { scale, panX, panY },
+    snapToGrid, alwaysShowSidebar
   };
   const jsonStr = JSON.stringify(data, null, 2);
   const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -890,30 +1013,8 @@ function handleFileSelect(evt) {
   reader.onload = function(e) {
     try {
       const data = JSON.parse(e.target.result);
-      nodes = []; backdrops = []; connections = [];
-      document.querySelectorAll('.node, .backdrop').forEach(el => el.remove());
-
-      if (data.projectName) projectNameInput.value = data.projectName;
-      layers = data.layers || [];
-      backdrops = data.backdrops || [];
-      nodes = data.nodes || [];
-      connections = data.connections || [];
-      
-      if (data.viewport) {
-        scale = data.viewport.scale || 1;
-        panX = data.viewport.panX || 0;
-        panY = data.viewport.panY || 0;
-        applyTransform();
-      }
-
-      renderLayers();
-      backdrops.forEach(bd => renderBackdropToDOM(bd));
-      nodes.forEach(node => renderNodeToDOM(node));
-      
-      requestAnimationFrame(() => {
-        updateConnections();
-      });
-      deselectAll();
+      applyProjectState(data);
+      saveProjectState();
     } catch (err) {
       alert('Failed to parse project JSON file.');
     }
