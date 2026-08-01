@@ -167,13 +167,84 @@
       font-size: 0.9rem;
       margin-top: 40px;
     }
+
+    /* Startup Screen Styles */
+    #startup-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: var(--bg-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+
+    #startup-screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .startup-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .startup-icon {
+      font-size: 4rem;
+      color: var(--accent-blue);
+      animation: startupScaleRotate 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    .startup-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text-main);
+      opacity: 0;
+      animation: startupFadeIn 0.8s ease 0.4s forwards;
+    }
+
+    @keyframes startupScaleRotate {
+      0% {
+        transform: scale(0.3) rotate(-180deg);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+      }
+    }
+
+    @keyframes startupFadeIn {
+      0% {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    #page-content {
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    body.loaded #page-content {
+      opacity: 1;
+    }
   </style>
 
   <script>
     (function() {
       try {
-        // Reads the exact theme key used by app.js (e.g. 'nodeLabsTheme')
-        // If it's explicitly 'light' or missing, defaults to a dark fallback theme ('dark')
         let savedTheme = localStorage.getItem('nodeLabsTheme');
         if (!savedTheme || savedTheme === 'light') {
           savedTheme = 'dark';
@@ -187,100 +258,119 @@
 </head>
 <body>
 
-  <header style="position: sticky; top: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-    <div class="brand">
-      <span style="font-size: 1.2rem;">⬡</span>
-      Node Labs
+  <div id="startup-screen">
+    <div class="startup-logo">
+      <div class="startup-icon">⬡</div>
+      <div class="startup-title">Node Labs</div>
     </div>
-    
-    <div class="toolbar-section" style="margin-left: auto;">
-      <a href="index.html" style="text-decoration: none;">
-        <button class="active" style="padding: 6px 16px; font-weight: 600;">Launch Editor</button>
-      </a>
-    </div>
-  </header>
-
-  <div class="hero">
-    <h1><span style="font-size: 3.5rem;">⬡</span> Node Labs</h1>
-    
-    <div class="badge-container">
-      <img src="https://img.shields.io/badge/version-1.2.3-blue.svg" alt="Version">
-      <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
-      <img src="https://img.shields.io/badge/Hosted%20on-GitHub%20Pages-blue" alt="Hosted">
-    </div>
-    
-    <p>Modular, node-based diagramming and schematic visualizer for A/V systems and production setups.</p>
-    
-    <a href="index.html" class="btn-primary">Try It Out</a>
   </div>
 
-  <div class="container">
-    
-    <section>
-      <h2>Overview</h2>
-      <p class="lead">
-        <strong>Node Labs</strong> is an open-source, web-based visual mapping tool designed specifically for Audio/Visual (A/V) system mapping. It provides a simple canvas to model complex production studio setups, signals, and rack setups.
-      </p>
-      <p class="sub-lead">
-        Whether you are mapping out an audio mixer setup, tracking IP-based video routing, or troubleshooting your setup, Node Labs simplifies system visualization so you can resolve technical issues quickly.
-      </p>
-    </section>
-
-    <section>
-      <h2>Key Features</h2>
-      <div class="features-grid">
-        <div class="feature-card">
-          <h3>Node-Based Cable Routing</h3>
-          <p>Connect devices with interactive bezier cable paths and visual signal flow direction (mostly for looks).</p>
-        </div>
-        <div class="feature-card">
-          <h3>Granular Detail & Metadata</h3>
-          <p>Assign custom labels, IP addresses or IDs, port numbers, and custom accent colors to each device.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Custom Backdrop Groups</h3>
-          <p>Organize related equipment into visual zones (e.g., Audio Rack, Master Control Room, Stage Box).</p>
-        </div>
-        <div class="feature-card">
-          <h3>Layer Management</h3>
-          <p>Hide or show entire signal paths (e.g., PC vs. Audio Path) to make it easier to understand.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Modular Node Library</h3>
-          <p>Easily extensible component templates for Switches, Mixers, Monitors, Speakers, Microphones, and PCs.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Light & Dark Themes</h3>
-          <p>Seamless UI theme toggling for low-light control rooms or bright workspace environments.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Local Project Persistence</h3>
-          <p>Save and load your complete schematic diagrams via lightweight JSON project files.</p>
-        </div>
-        <div class="feature-card">
-          <h3>100% Free & Open-Source</h3>
-          <p>No backend required; runs directly in the browser via static hosting (GitHub Pages).</p>
-        </div>
+  <div id="page-content">
+    <header style="position: sticky; top: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+      <div class="brand">
+        <span style="font-size: 1.2rem;">⬡</span>
+        Node Labs
       </div>
-    </section>
+      
+      <div class="toolbar-section" style="margin-left: auto;">
+        <a href="index.html" style="text-decoration: none;">
+          <button class="active" style="padding: 6px 16px; font-weight: 600;">Launch Editor</button>
+        </a>
+      </div>
+    </header>
 
-    <section>
-      <h2>Repository Structure</h2>
-      <p style="color: var(--text-muted); margin-bottom: 16px;">Structured for simplicity, ensuring easy deployment and modifiability.</p>
-      <pre><code>node-labs/
+    <div class="hero">
+      <h1><span style="font-size: 3.5rem;">⬡</span> Node Labs</h1>
+      
+      <div class="badge-container">
+        <img src="https://img.shields.io/badge/version-1.2.3-blue.svg" alt="Version">
+        <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
+        <img src="https://img.shields.io/badge/Hosted%20on-GitHub%20Pages-blue" alt="Hosted">
+      </div>
+      
+      <p>Modular, node-based diagramming and schematic visualizer for A/V systems and production setups.</p>
+      
+      <a href="index.html" class="btn-primary">Try It Out</a>
+    </div>
+
+    <div class="container">
+      
+      <section>
+        <h2>Overview</h2>
+        <p class="lead">
+          <strong>Node Labs</strong> is an open-source, web-based visual mapping tool designed specifically for Audio/Visual (A/V) system mapping. It provides a simple canvas to model complex production studio setups, signals, and rack setups.
+        </p>
+        <p class="sub-lead">
+          Whether you are mapping out an audio mixer setup, tracking IP-based video routing, or troubleshooting your setup, Node Labs simplifies system visualization so you can resolve technical issues quickly.
+        </p>
+      </section>
+
+      <section>
+        <h2>Key Features</h2>
+        <div class="features-grid">
+          <div class="feature-card">
+            <h3>Node-Based Cable Routing</h3>
+            <p>Connect devices with interactive bezier cable paths and visual signal flow direction (mostly for looks).</p>
+          </div>
+          <div class="feature-card">
+            <h3>Granular Detail & Metadata</h3>
+            <p>Assign custom labels, IP addresses or IDs, port numbers, and custom accent colors to each device.</p>
+          </div>
+          <div class="feature-card">
+            <h3>Custom Backdrop Groups</h3>
+            <p>Organize related equipment into visual zones (e.g., Audio Rack, Master Control Room, Stage Box).</p>
+          </div>
+          <div class="feature-card">
+            <h3>Layer Management</h3>
+            <p>Hide or show entire signal paths (e.g., PC vs. Audio Path) to make it easier to understand.</p>
+          </div>
+          <div class="feature-card">
+            <h3>Modular Node Library</h3>
+            <p>Easily extensible component templates for Switches, Mixers, Monitors, Speakers, Microphones, and PCs.</p>
+          </div>
+          <div class="feature-card">
+            <h3>Light & Dark Themes</h3>
+            <p>Seamless UI theme toggling for low-light control rooms or bright workspace environments.</p>
+          </div>
+          <div class="feature-card">
+            <h3>Local Project Persistence</h3>
+            <p>Save and load your complete schematic diagrams via lightweight JSON project files.</p>
+          </div>
+          <div class="feature-card">
+            <h3>100% Free & Open-Source</h3>
+            <p>No backend required; runs directly in the browser via static hosting (GitHub Pages).</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Repository Structure</h2>
+        <p style="color: var(--text-muted); margin-bottom: 16px;">Structured for simplicity, ensuring easy deployment and modifiability.</p>
+        <pre><code>node-labs/
 ├── index.html              # Main HTML markup entry point
 ├── css/
 │   └── styles.css          # UI styling, themes, and CSS variables
 └── js/
     ├── componentLibrary.js # Device templates & library registry
     └── app.js              # Canvas engine, state management, & cable pathing</code></pre>
-    </section>
+      </section>
 
+    </div>
+
+    <footer>
+      <p>&copy; 2026 TerabyteEXE / Node Labs. Open source under the MIT License.</p>
+    </footer>
   </div>
 
-  <footer>
-    <p>&copy; 2026 TerabyteEXE / Node Labs. Open source under the MIT License.</p>
-  </footer>
+  <script>
+    window.addEventListener("load", () => {
+        const splash = document.getElementById("startup-screen");
+        setTimeout(() => {
+            splash.classList.add("hidden");
+            document.body.classList.add("loaded");
+        }, 1500);
+    });
+  </script>
 
 </body>
 </html>
