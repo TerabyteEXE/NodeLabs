@@ -5,7 +5,7 @@
 [![Version](https://img.shields.io/badge/version-2.0.0--alpha-blue.svg)](https://github.com/TerabyteEXE/NodeLabs/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub Pages](https://img.shields.io/badge/Hosted%20on-GitHub%20Pages-blue)](https://pages.github.com/)
-![GitHub last commit](https://shields.io)
+![GitHub last commit](https://img.shields.io/github/last-commit/TerabyteEXE/NodeLabs)
 ---
 
 ## Overview
