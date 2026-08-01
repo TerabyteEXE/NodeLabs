@@ -1,1 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Labs - A/V System Visualizer</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        h1 { font-size: 3rem; margin-bottom: 10px; color: #4DA8DA; }
+        p { font-size: 1.2rem; max-width: 600px; color: #cccccc; margin-bottom: 40px; }
+        .btn-container { display: flex; gap: 20px; }
+        .btn {
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            color: white;
+            background-color: #333;
+            border: 2px solid #4DA8DA;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .btn-primary { background-color: #4DA8DA; border-color: #4DA8DA; }
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(77, 168, 218, 0.4); }
+    </style>
+</head>
+<body>
 
+    <h1>Node Labs</h1>
+    <p>The modular, node-based diagramming and schematic visualizer for A/V systems and production setups. Map your gear, track your signals, and troubleshoot faster.</p>
+
+    <div class="btn-container">
+        <a href="index.html" class="btn btn-primary">Launch App</a>
+        <a href="tutorial.html" class="btn">Tutorial</a>
+        <a href="index.html?viewer=true" class="btn">Demo Viewer Mode</a> 
+    </div>
+
+</body>
+</html>
