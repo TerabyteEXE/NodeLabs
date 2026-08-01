@@ -11,6 +11,15 @@
 </head>
 <body>
 
+  <div id="startup-screen">
+    <div class="startup-logo">
+      <div class="startup-icon">⬡</div>
+      <div class="startup-title">Node Labs</div>
+    </div>
+  </div>
+
+  <div id="page-content" style="display:flex; flex-direction:column; height:100%;">
+
   <header>
     <div class="brand">
       <a href="https://terabyteexe.github.io/NodeLabs/webpage.html" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;">Node Labs</a>
@@ -65,6 +74,8 @@
     </aside>
   </div>
 
+  </div>
+
   <div id="settings-modal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -105,5 +116,25 @@
 
   <script src="js/componentLibrary.js"></script>
   <script src="js/app.js"></script>
+  <script>
+    window.addEventListener('load', () => {
+      const minDisplay = 1200;
+      const start = performance.now();
+
+      const reveal = () => {
+        const elapsed = performance.now() - start;
+        const wait = Math.max(0, minDisplay - elapsed);
+        setTimeout(() => {
+          document.getElementById('startup-screen').classList.add('hidden');
+          document.body.classList.add('loaded');
+        }, wait);
+      };
+
+      // init() (from app.js, run via window.onload) is synchronous, so by
+      // the time this 'load' listener runs the canvas is already restored/
+      // built - we just enforce a minimum splash duration for polish.
+      reveal();
+    });
+  </script>
 </body>
 </html>
