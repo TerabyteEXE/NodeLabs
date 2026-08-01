@@ -35,9 +35,9 @@ Structured for simplicity
 
 ```text
 node-labs/
-├── index.html              # Main HTML markup entry point
+├── index.html
 ├── css/
-│   └── styles.css          # UI styling, themes, and CSS variables
+│   └── styles.css
 └── js/
-    ├── componentLibrary.js # Device templates & library registry
-    └── app.js             # Canvas engine, state management, & cable pathing
+    ├── componentLibrary.js
+    └── app.js
