@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
@@ -369,24 +368,6 @@
     </footer>
   </div>
 
-  <!-- ======================================================================
-       ROADMAP DATA
-       This is the only part of the file you should need to touch.
-       Add / edit / remove objects in the ROADMAP array below and the page
-       builds itself — no HTML editing required.
-
-       Fields:
-         version : string, e.g. "1.0.0"
-         status  : "released" | "current" | "planned"
-                     released -> solid blue marker, filled-in history
-                     current  -> pulsing pink marker, use for the version
-                                 you're actively on right now (e.g. beta)
-                     planned  -> dashed outline card, for future ideas
-         title   : short name for the version, e.g. "Initial Concept"
-         date    : e.g. "Jan 2026" or "TBD" — leave "" to hide it
-         summary : (optional) one or two sentence description, or "" to skip
-         items   : array of bullet strings — the changelog / feature list
-  ======================================================================= -->
   <script>
     const ROADMAP = [
       {
@@ -406,7 +387,7 @@
         date: "7/21/2026",
         summary: "Overall theme was complete but the project was very buggy and was not polished",
         items: [
-          "Needed a lot of work",
+          "Needed a lot of work"
         ]
       },
       {
@@ -420,7 +401,6 @@
           "Still in its beta stage;)"
         ]
       },
-
       // -------- Future / Planned --------
       {
         version: "2.0.0",
@@ -431,6 +411,7 @@
         items: [
           "TBD"
         ]
+      },
       {
         version: "3.0.0",
         status: "planned",
@@ -438,7 +419,7 @@
         date: "TBD",
         summary: "First stable release of the app version.",
         items: [
-          "App will be released to Windows and Mac, hopefully alongside IOS."
+          "App will be released to Windows and Mac, hopefully alongside IOS.",
           "New and updated touchscreen support with main project library"
         ]
       }
@@ -450,8 +431,6 @@
       let html = '';
 
       ROADMAP.forEach(entry => {
-        // Auto-insert a "Planned / Future" section label the first time
-        // we hit a planned entry, so you don't have to manage it by hand.
         if (entry.status === 'planned' && lastStatus !== 'planned') {
           html += `
             <div class="section-label">Planned / Future</div>
