@@ -1,4 +1,8 @@
-  // Feel free to add or remove anything you wish here
+  // Feel free to add to the growing list of items -- TerabyteEXE
+  // Guide and Format:
+  // 			{ type: 'Name Here', color: 'Six digit with # before Hex code for color such as #FFFFFF for black.', inPorts: 1, outPorts: 1 },
+  // Warning!! This code is case sensitive so make sure when you add it that everything is correctly filled out! Also make sure you add nodes in their
+  // correct places. If no place is found make a new catagory and use // to name it as follows.
 window.componentLibrary = [
   // --- Audio ---
   { type: 'Audio Mixer', color: '#9d4edd', inPorts: 8, outPorts: 8 },
@@ -53,5 +57,10 @@ window.componentLibrary = [
   { type: 'PDU (Power Distribution Unit)', color: '#ddbea9', inPorts: 1, outPorts: 8 },
 
   // --- Blank / Custom Node ---
-  { type: 'Blank Node', color: '#6c757d', inPorts: 2, outPorts: 2 }
+  { type: 'Blank', color: '#6c757d', inPorts: 1, outPorts: 1 },
+
+  // --- Generic Device Node ---
+  { type: 'Console', color: '#065613', inPorts: 1, outPorts: 1 },
+  { type: 'TV', color: '#000000', inPorts: 1, outPorts: 1 },
+  { type: 'Phone', color: '#FFFFFF', inPorts: 1, outPorts: 1 },
 ];
