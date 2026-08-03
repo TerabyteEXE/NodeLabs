@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
@@ -5,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Node Labs | Roadmap</title>
 
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231e1e2e'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='middle' font-weight='bold'>⬡</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231e1e2e'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='middle' font-weight='bold'>⌬</text></svg>">
 
   <link rel="stylesheet" href="css/styles.css">
 
@@ -351,10 +352,10 @@
     </header>
 
     <div class="hero">
-      <h1><span style="font-size: 3rem;">⬡</span> Roadmap</h1>
+      <h1><span style="font-size: 3rem;">⌬</span> Roadmap</h1>
       <p>Where Node Labs has been, where it is now, and where it's headed.</p>
       <div class="badge-container">
-        <img src="https://img.shields.io/badge/version-1.9.9--beta-blue.svg" alt="Version">
+        <img src="https://img.shields.io/badge/version-1.9.9--Beta-blue.svg" alt="Version">
         <img src="https://img.shields.io/badge/status-beta%20testing-f38ba8" alt="Status">
       </div>
     </div>
@@ -368,39 +369,59 @@
     </footer>
   </div>
 
+  <!-- ======================================================================
+       ROADMAP DATA
+       This is the only part of the file you should need to touch.
+       Add / edit / remove objects in the ROADMAP array below and the page
+       builds itself — no HTML editing required.
+
+       Fields:
+         version : string, e.g. "1.0.0"
+         status  : "released" | "current" | "planned"
+                     released -> solid blue marker, filled-in history
+                     current  -> pulsing pink marker, use for the version
+                                 you're actively on right now (e.g. beta)
+                     planned  -> dashed outline card, for future ideas
+         title   : short name for the version, e.g. "Initial Concept"
+         date    : e.g. "Jan 2026" or "TBD" — leave "" to hide it
+         summary : (optional) one or two sentence description, or "" to skip
+         items   : array of bullet strings — the changelog / feature list
+  ======================================================================= -->
   <script>
     const ROADMAP = [
       {
         version: "1.0.0",
         status: "released",
         title: "Initial Concept",
-        date: "Forgotten to time",
-        summary: "The first working idea of Node Labs with a decent shell.",
+        date: "",
+        summary: "The first working idea of Node Labs — proving out node placement and cable connections on a canvas.",
         items: [
-          "Simple but a good vision"
+          "Add your notes here",
+          "Add your notes here"
         ]
       },
       {
-        version: "1.1-1.8",
+        version: "1.5.0",
         status: "released",
-        title: "Multiple releases of working and somewhat well done iterations",
-        date: "7/21/2026",
-        summary: "Overall theme was complete but the project was very buggy and was not polished",
+        title: "",
+        date: "",
+        summary: "",
         items: [
-          "Needed a lot of work"
+          "Add your notes here"
         ]
       },
       {
         version: "1.9.9",
         status: "current",
         title: "Public Beta",
-        date: "8/1/2026",
+        date: "",
         summary: "Current build. Open for beta testing — feedback and bug reports are actively shaping the 2.0 release.",
         items: [
-          "Most polished and complete vision of the project",
-          "Still in its beta stage;)"
+          "Add your notes here",
+          "Add your notes here"
         ]
       },
+
       // -------- Future / Planned --------
       {
         version: "2.0.0",
@@ -409,18 +430,7 @@
         date: "TBD",
         summary: "First stable, non-beta release.",
         items: [
-          "TBD"
-        ]
-      },
-      {
-        version: "3.0.0",
-        status: "planned",
-        title: "Official App Release",
-        date: "TBD",
-        summary: "First stable release of the app version.",
-        items: [
-          "App will be released to Windows and Mac, hopefully alongside IOS.",
-          "New and updated touchscreen support with main project library"
+          "Add your notes here"
         ]
       }
     ];
@@ -431,6 +441,8 @@
       let html = '';
 
       ROADMAP.forEach(entry => {
+        // Auto-insert a "Planned / Future" section label the first time
+        // we hit a planned entry, so you don't have to manage it by hand.
         if (entry.status === 'planned' && lastStatus !== 'planned') {
           html += `
             <div class="section-label">Planned / Future</div>
