@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
@@ -6,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Node Labs | Roadmap</title>
 
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231e1e2e'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='middle' font-weight='bold'>⌬</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231e1e2e'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='middle' font-weight='bold'>⬡</text></svg>">
 
   <link rel="stylesheet" href="css/styles.css">
 
@@ -241,7 +240,7 @@
     }
 
     .section-label::before {
-      content: '⌬';
+      content: '⬡';
       color: var(--accent-pink);
       font-size: 1.2rem;
     }
@@ -327,7 +326,7 @@
 
   <div id="startup-screen">
     <div class="startup-logo">
-      <div class="startup-icon">⌬</div>
+      <div class="startup-icon">⬡</div>
       <div class="startup-title">Node Labs</div>
     </div>
   </div>
@@ -335,7 +334,7 @@
   <div id="page-content">
     <header style="position: sticky; top: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
       <div class="brand">
-        <span style="font-size: 1.2rem;">⌬</span>
+        <span style="font-size: 1.2rem;">⬡</span>
         Node Labs
       </div>
 
@@ -352,10 +351,10 @@
     </header>
 
     <div class="hero">
-      <h1><span style="font-size: 3rem;">⌬</span> Roadmap</h1>
+      <h1><span style="font-size: 3rem;">⬡</span> Roadmap</h1>
       <p>Where Node Labs has been, where it is now, and where it's headed.</p>
       <div class="badge-container">
-        <img src="https://img.shields.io/badge/version-1.9.9--Beta-blue.svg" alt="Version">
+        <img src="https://img.shields.io/badge/version-1.9.9--beta-blue.svg" alt="Version">
         <img src="https://img.shields.io/badge/status-beta%20testing-f38ba8" alt="Status">
       </div>
     </div>
@@ -369,59 +368,39 @@
     </footer>
   </div>
 
-  <!-- ======================================================================
-       ROADMAP DATA
-       This is the only part of the file you should need to touch.
-       Add / edit / remove objects in the ROADMAP array below and the page
-       builds itself — no HTML editing required.
-
-       Fields:
-         version : string, e.g. "1.0.0"
-         status  : "released" | "current" | "planned"
-                     released -> solid blue marker, filled-in history
-                     current  -> pulsing pink marker, use for the version
-                                 you're actively on right now (e.g. beta)
-                     planned  -> dashed outline card, for future ideas
-         title   : short name for the version, e.g. "Initial Concept"
-         date    : e.g. "Jan 2026" or "TBD" — leave "" to hide it
-         summary : (optional) one or two sentence description, or "" to skip
-         items   : array of bullet strings — the changelog / feature list
-  ======================================================================= -->
   <script>
     const ROADMAP = [
       {
         version: "1.0.0",
         status: "released",
         title: "Initial Concept",
-        date: "",
-        summary: "The first working idea of Node Labs — proving out node placement and cable connections on a canvas.",
+        date: "Forgotten to time",
+        summary: "The first working idea of Node Labs with a decent shell.",
         items: [
-          "Add your notes here",
-          "Add your notes here"
+          "Simple but a good vision"
         ]
       },
       {
-        version: "1.5.0",
+        version: "1.1-1.8",
         status: "released",
-        title: "",
-        date: "",
-        summary: "",
+        title: "Multiple releases of working and somewhat well done iterations",
+        date: "7/21/2026",
+        summary: "Overall theme was complete but the project was very buggy and was not polished",
         items: [
-          "Add your notes here"
+          "Needed a lot of work"
         ]
       },
       {
         version: "1.9.9",
         status: "current",
         title: "Public Beta",
-        date: "",
+        date: "8/1/2026",
         summary: "Current build. Open for beta testing — feedback and bug reports are actively shaping the 2.0 release.",
         items: [
-          "Add your notes here",
-          "Add your notes here"
+          "Most polished and complete vision of the project",
+          "Still in its beta stage;)"
         ]
       },
-
       // -------- Future / Planned --------
       {
         version: "2.0.0",
@@ -430,7 +409,18 @@
         date: "TBD",
         summary: "First stable, non-beta release.",
         items: [
-          "Add your notes here"
+          "TBD"
+        ]
+      },
+      {
+        version: "3.0.0",
+        status: "planned",
+        title: "Official App Release",
+        date: "TBD",
+        summary: "First stable release of the app version.",
+        items: [
+          "App will be released to Windows and Mac, hopefully alongside IOS.",
+          "New and updated touchscreen support with main project library"
         ]
       }
     ];
@@ -441,8 +431,6 @@
       let html = '';
 
       ROADMAP.forEach(entry => {
-        // Auto-insert a "Planned / Future" section label the first time
-        // we hit a planned entry, so you don't have to manage it by hand.
         if (entry.status === 'planned' && lastStatus !== 'planned') {
           html += `
             <div class="section-label">Planned / Future</div>
